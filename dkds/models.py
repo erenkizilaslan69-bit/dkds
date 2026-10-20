@@ -59,6 +59,7 @@ class Bulgu:
     guven: float  # 0.0 – 1.0
     oneri: str | None = None
     konum: Konum | None = None
+    tur: str = ""  # bulguyu üreten kural, ör. "tekrar", "bilinmeyen_kelime"
 
 
 @dataclass
