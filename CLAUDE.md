@@ -50,6 +50,17 @@ hata tespiti, hatanın açıklanması ve hatanın bulunduğu sayfa/paragrafın g
 - s.146–147 haritadır (yüzlerce etiket); sayfa bağlamı kuralıyla tamamı etiket sayılır.
 - Bilinen sınırlama: font bilgisi kullanılmadığı için "Temel Kabuller" gibi ilk harfi büyük
   alt başlıklar etiket olarak sınıflanır.
+
+## İkinci test kitabı: `veri/sosyalbilgiler5.pdf` (5. Sınıf Sosyal Bilgiler, 154 sayfa)
+
+Kurallar iki kitapta da denenmeli; tek kitaba göre eşik ayarlanmamalı.
+- Satır aralığı fen5'ten sıkı: satır kutuları üst üste biniyor (birleştirme toleransı buna göre).
+- Haritalar: s.54 (1289 paragraf), 55, 90, 94, 111, 153, 154. Harita simgeleri ESRI yazı
+  tiplerinden "Ä!", "!p" gibi anlamsız karakterler olarak geliyor.
+- Bazı başlıklarda İ harfi metin katmanında I olarak kodlanmış ("ÖĞRENELIM", "TÜRKIYE");
+  basılı halde doğru. Yazım analizöründe yanlış alarm üretebilir.
+- s.142'de aynı cümleler iki farklı yazımla iki kez çıkıyor (gizli/üst üste metin katmanı).
+- Madde imi az kullanılmış; liste türünün düşük çıkması (%1) kural hatası değil.
 - Düzyazı örnek sayfası: s.35 (Ay'ın yüzeyi). Paragraf ayrımını burada kontrol et.
 
 ## Çalışma şekli

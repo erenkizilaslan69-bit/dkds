@@ -57,7 +57,23 @@ class ParagrafTuruTest(unittest.TestCase):
         self.kontrol(ETIKET, "100 N 50 N 5 N 25 N", "0 100 200 300 400 50 km")
 
     def test_altyazi_etiket(self):
-        self.kontrol(ETIKET, "Görsel 3.1.14: Büyüteç ile yaprak incelemesi", "Tablo 2: Ölçüm sonuçları")
+        self.kontrol(
+            ETIKET,
+            "Görsel 3.1.14: Büyüteç ile yaprak incelemesi",
+            "Tablo 2: Ölçüm sonuçları",
+            "Harita 2.3 Kars Mülkî İdare İl Haritası",  # sosyalbilgiler5.pdf s.55
+        )
+
+    def test_baslik_bicimli_sekil_ve_tablo_adlari_etiket(self):
+        self.kontrol(
+            ETIKET,
+            "Mezopotamya Medeniyetleri Tarih Şeridi",  # sosyalbilgiler5.pdf s.130
+            "Yazılı Kaynaklar Görsel Kaynaklar Dijital Kaynaklar",  # s.91 tablo başlığı
+            "Destek ve Hareket Sisteminin Bileşenleri",  # fen5.pdf s.120, bağlaç küçük harfli
+        )
+
+    def test_kucuk_harfli_kelime_iceren_metin_baslik_bicimli_degil(self):
+        self.kontrol(GOVDE, "Mustafa Kemal Atatürk ataturkansiklopedisi.gov.tr adresinden alınmıştır")
 
     def test_kisa_cumle_govde(self):
         self.kontrol(GOVDE, "Güneş, sıcak gazlardan ve katmanlardan oluşur.", "Kemik sertir.")
@@ -84,6 +100,28 @@ class SayfaTurleriTest(unittest.TestCase):
         self.assertEqual(turler[0], BASLIK)  # sayfanın en üstündeki başlık korunur
         self.assertEqual(turler[-3:-1], [ETIKET, ETIKET])
         self.assertEqual(turler[-1], GOVDE)  # cümle sonu işaretiyle biten metin korunur
+
+    def test_buyuk_harfli_yer_adlari_da_harita_sayilir(self):
+        # sosyalbilgiler5.pdf s.54: yer adlarının çoğu büyük harfli, yani "başlık"
+        metinler = ["Akdağmadeni", "KASTAMONU", "AĞRI DAĞI", "Sinop", "KARADAĞ", "OTOYOL"] * 6
+        self.assertEqual(set(sayfa_turleri(metinler)), {ETIKET})
+
+    def test_ilk_etiketten_onceki_baslik_ve_yonerge_korunur(self):
+        # sosyalbilgiler5.pdf s.142: yönerge, kutu başlığı, ardından şema
+        metinler = ["Şemadaki cümlelerden bazıları doğru, bazıları yanlıştır.", "DEĞERLENDİRELİM"]
+        metinler += ["Sümerler", "İlk yazılı kanunları", "7. ÇIKIŞ"] * 10
+        turler = sayfa_turleri(metinler)
+        self.assertEqual(turler[:2], [GOVDE, BASLIK])
+
+    def test_tek_kelimelik_etiketler_arasindaki_baslik_etiket(self):
+        # sosyalbilgiler5.pdf s.136: metin içindeki küçük harita
+        metinler = ["Lidyalılar ile ilgili kaynakları inceleyiniz.", "Sardes", "HAZAR DENIZI", "Efes"]
+        self.assertEqual(sayfa_turleri(metinler), [GOVDE, ETIKET, ETIKET, ETIKET])
+
+    def test_iki_kelimelik_alt_basliklar_arasindaki_baslik_korunur(self):
+        # fen5.pdf s.25: "Görünen Boyut" / ETKİNLİK İSTASYONU / "Etkinliğin Yapılışı"
+        metinler = ["Güneş çok uzaktadır.", "Görünen Boyut", "ETKİNLİK İSTASYONU", "Etkinliğin Yapılışı"]
+        self.assertEqual(sayfa_turleri(metinler)[2], BASLIK)
 
     def test_az_paragrafli_sayfada_kural_uygulanmaz(self):
         metinler = ["Ribozom", "Mitokondri", "HÜCRE ZARI"]
