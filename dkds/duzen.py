@@ -79,6 +79,8 @@ def birlestirilmeli_mi(a: Blok, b: Blok) -> bool:
       - Aynı sütunda olmaları (yatayda en az %50 örtüşme)
       - Aralarındaki dikey boşluğun bir satır yüksekliğinden az olması
       - a'nın cümle sonu işaretiyle bitmemesi
+      - a'nın tamamen büyük harfli (başlık) olmaması: "ANAHTAR KAVRAMLAR" altındaki
+        "kuvvet, kütle..." listesine eklenmemeli
       - b'nin küçük harfle başlaması
     """
     if _yatay_ortusme(a, b) < 0.5:
@@ -89,7 +91,14 @@ def birlestirilmeli_mi(a: Blok, b: Blok) -> bool:
     a_metin, b_metin = a.metin.rstrip(), b.metin.lstrip()
     if not a_metin or not b_metin or a_metin.endswith(CUMLE_SONU):
         return False
+    if _tamamen_buyuk_harf(a_metin):
+        return False
     return b_metin[0].islower()
+
+
+def _tamamen_buyuk_harf(metin: str) -> bool:
+    harfler = [k for k in metin if k.isalpha()]
+    return len(harfler) >= 2 and all(k.isupper() for k in harfler)
 
 
 def bolunmus_paragraflari_birlestir(bloklar: list[Blok]) -> list[Blok]:

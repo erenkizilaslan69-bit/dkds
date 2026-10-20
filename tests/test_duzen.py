@@ -62,6 +62,12 @@ class BirlestirmeTest(unittest.TestCase):
         b = blok(1, 122, 140, "Yeni paragraf büyük harfle başlıyor.\n")
         self.assertEqual(len(bolunmus_paragraflari_birlestir([a, b])), 2)
 
+    def test_buyuk_harfli_baslik_altindaki_listeyle_birlesmez(self):
+        # fen5.pdf s.58: "ANAHTAR KAVRAMLAR" başlığı ve altındaki kavram listesi
+        a = blok(1, 100, 118, "ANAHTAR KAVRAMLAR\n")
+        b = blok(1, 122, 140, "kuvvet\nkuvvet birimi\ndinamometre\n")
+        self.assertEqual(len(bolunmus_paragraflari_birlestir([a, b])), 2)
+
     def test_farkli_sutunlar_birlesmez(self):
         a = blok(1, 100, 118, "sol sütunda biten metin\n", x0=50, x1=290)
         b = blok(1, 100, 118, "sağ sütunda başlayan metin\n", x0=310, x1=550)
