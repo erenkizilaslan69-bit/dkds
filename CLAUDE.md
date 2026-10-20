@@ -61,6 +61,19 @@ Kurallar iki kitapta da denenmeli; tek kitaba göre eşik ayarlanmamalı.
   basılı halde doğru. Yazım analizöründe yanlış alarm üretebilir.
 - s.142'de aynı cümleler iki farklı yazımla iki kez çıkıyor (gizli/üst üste metin katmanı).
 - Madde imi az kullanılmış; liste türünün düşük çıkması (%1) kural hatası değil.
+
+## Yazım analizörü notları
+
+- zeyrek 0.1.3'te durum bozulması hatası var (lru_cache'li küme değiştiriliyor); `morfoloji.py`
+  çalışma anında yamalıyor. Yama kaldırılırsa sonuçlar çalıştırmadan çalıştırmaya değişir.
+- fen5 s.56–57, 96–97: dekoratif Jokerman yazı tipi ş/ğ'yi s/g kodluyor; basılı hali doğru
+  ("Günes", "kaynagı") → `karakter_kaybi` (çıkarım sorunu), yazım hatası değil.
+- Bulgu değerlendirmesi metin katmanına değil, PDF'in basılı görüntüsüne bakılarak yapılır.
+- Bulunan gerçek hatalar: fen5 "hedeflenmektedi ." (s.31), "nesile" (s.111), "sınıflandırılı ."
+  (s.124, 129), boşluklu tire (s.31, 118); sosyal5 "anektod" (s.37), "öğretmlerimiz" (s.79),
+  "nakışı" (s.23), "fotoğraf,gazete" (s.62), kaynakça "Özyürek,A" (s.21).
+- Kalan yanlış alarmların çoğu yabancı/yöresel kelimeler ("kukeri", "resfebe") ve zeyrek'in
+  tanımadığı biçimler ("bulmalıyız", "sahipti"). `ek_sozluk.txt`'ye yalnızca TDK'da olan sözcük eklenir.
 - Düzyazı örnek sayfası: s.35 (Ay'ın yüzeyi). Paragraf ayrımını burada kontrol et.
 
 ## Çalışma şekli

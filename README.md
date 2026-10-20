@@ -7,7 +7,7 @@ Tespit edilen her sorun, açıklamasıyla birlikte kitabın ilgili **sayfa ve pa
 
 | Kriter | Yöntem | Durum |
 |---|---|---|
-| Yazım ve dil hataları | Kural tabanlı + morfolojik analiz | Planlandı |
+| Yazım ve dil hataları | Kural tabanlı + morfolojik analiz (zeyrek) | İlk sürüm |
 | Yaş / sınıf seviyesine uygunluk | İstatistiksel (Ateşman, Bezirci-Yılmaz) | Planlandı |
 | Kitap içi bilgi tutarsızlığı | Yapay zekâ destekli (LLM) | Planlandı |
 
@@ -27,6 +27,8 @@ PDF ─► Metin çıkarma ─► Temizleme ─► Analizörler ─► Bulgular 
 | `dkds/duzen.py` | Üst/alt bilgi temizliği, bölünmüş paragrafların birleştirilmesi |
 | `dkds/temizleme.py` | Satır sonu tirelemesi, ligatürler, bozuk kodlama tespiti |
 | `dkds/siniflandirma.py` | Paragraf türü: `baslik`, `govde`, `soru`, `liste`, `etiket` (kural tabanlı) |
+| `dkds/analiz/yazim.py` | Yazım analizörü: kesin kurallar, bilinmeyen kelime, Türkçe karakter kaybı ayrımı |
+| `dkds/analiz/morfoloji.py` | zeyrek sarmalayıcısı: kelime geçerliliği, önbellek, zeyrek hata yaması |
 
 `duzen.py`, `temizleme.py` ve `siniflandirma.py` hiçbir PDF kütüphanesine bağlı değildir; böylece bağımsız olarak test edilebilirler.
 
@@ -61,6 +63,17 @@ python -m dkds veri\kitap.pdf
 }
 ```
 
+Yazım analizi:
+
+```powershell
+python -m dkds analiz veri\kitap.pdf
+```
+
+Bulgular `cikti\kitap_bulgular.json` dosyasına yazılır; ekranda kriter, bulgu türü ve paragraf
+türüne göre özet gösterilir. Her bulgu `Bulgu` formatındadır (sayfa, paragraf, kriter,
+sorunlu_metin, aciklama, guven, oneri, konum, tur). `karakter_kaybi` türündeki bulgular yazım
+hatası değil, olası metin çıkarma sorunudur (ör. dekoratif yazı tipi ş'yi s olarak kodlar).
+
 ## Testler
 
 ```powershell
@@ -70,7 +83,7 @@ python -m unittest -v
 ## Yol haritası
 
 - [x] **Hafta 2–3:** PDF'ten sayfa/paragraf bilgisiyle metin çıkarma ve temizleme
-- [ ] **Hafta 4–5:** Yazım ve dil hataları analizörü — ilk uçtan uca demo
+- [x] **Hafta 4–5:** Yazım ve dil hataları analizörü — ilk uçtan uca demo (ilk sürüm)
 - [ ] **Hafta 6–7:** Okunabilirlik / sınıf seviyesi analizörü
 - [ ] **Hafta 8–9:** Kitap içi bilgi tutarsızlığı analizörü (LLM)
 - [ ] **Hafta 10–11:** Arayüz ve raporlama

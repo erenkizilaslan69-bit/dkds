@@ -58,6 +58,31 @@ class KesinKurallarTest(unittest.TestCase):
         metin = "Kalem, silgi vb. araçlar gereklidir. Tablo 36. sayfada yer alır. Gezegenler... ve uydular."
         self.assertNotIn("kucuk_harfle_cumle", self.turler(metin))
 
+    def test_sozlukce_maddeleri_cumle_sayilmaz(self):
+        # fen5.pdf s.144, sosyalbilgiler5.pdf s.150: madde başları küçük harfle yazılır
+        metin = ("astronomi: Gök cisimlerini inceleyen bilim, gök bilimi. ataş: Kâğıtları tutturan araç. "
+                 "genel ağ: Bilgisayarların bağlandığı ağ; internet.")
+        self.assertNotIn("kucuk_harfle_cumle", self.turler(metin))
+
+    def test_sik_harfi_kisaltma_ve_roma_rakamindan_sonra_kucuk_harf(self):
+        metin = ("Tok, G. (2006). s. 72-73. Hangi özelliği ile ilgilidir? b. Ay’ın hareketleri. "
+                 "II. mikroskop bölümüne bakınız. Burdur’un 26 km. güneybatısındadır. "
+                 "Gölün 100 m. yukarısındadır. Şahin, H., Konyar, E. ve Ergin, G. (2011).")
+        self.assertNotIn("kucuk_harfle_cumle", self.turler(metin))
+
+    def test_form_hizalamasi_bosluk_sayilmaz(self):
+        # sosyalbilgiler5.pdf: "Adı : ... Amacı : ... Süre : 2 ders saati" sütun hizalı form
+        metin = "Adı : Kara Sınırı Komşularımız Amacı : Bilgi toplama Beceri : Sunma Süre : 2 ders saati"
+        self.assertNotIn("noktalama_oncesi_bosluk", self.turler(metin))
+
+    def test_tek_iki_nokta_oncesi_bosluk_hata(self):
+        self.assertIn("noktalama_oncesi_bosluk", self.turler("Gerekli malzemeler : kalem ve kâğıt."))
+
+    def test_gercek_hata_yakalanir(self):
+        # fen5.pdf s.31: basılı sayfada da "r" eksik ve noktadan önce boşluk var
+        b = self.tek_bulgu("Birçok alanda başarı sağlanması hedeflenmektedi .", "noktalama_oncesi_bosluk")
+        self.assertEqual(b.oneri, "hedeflenmektedi.")
+
     def test_sik_yanlislar(self):
         b = self.tek_bulgu("Herkez bu deneyi yapabilir.", "sik_yanlis")
         self.assertEqual(b.oneri, "Herkes")
@@ -92,6 +117,47 @@ class BilinmeyenKelimeTest(unittest.TestCase):
     def test_ozel_isim_buyuk_harf_ve_birim_denetlenmez(self):
         metin = "Hattuşa kenti 12 km uzaktadır. ÖĞRENELIM bölümünde 10’uncu sayfayı inceleyiniz."
         self.assertEqual(self.bilinmeyenler(metin), [])
+
+    def test_gercek_hata_nesile(self):
+        # fen5.pdf s.111: "nesil" ünlü düşmesine uğrar, doğrusu "nesilden nesle"
+        self.assertEqual(self.bilinmeyenler("Bu özellikler nesilden nesile aktarılır."), ["nesile"])
+
+    def test_ikinci_degerlendirmedeki_gercek_hatalar(self):
+        # sosyalbilgiler5.pdf s.37 ve s.79: basılı sayfada da böyle yazılmış
+        self.assertEqual(self.bilinmeyenler("Bu önerileri anektod kaydı yöntemi ile değerlendirdik."),
+                         ["anektod"])
+        self.assertEqual(self.bilinmeyenler("Diğer arkadaşlarımız ve öğretmlerimiz de katıldılar."),
+                         ["öğretmlerimiz"])
+
+    def test_parantezle_okunusu_verilen_kelime_denetlenmez(self):
+        metin = ("Buz satrancı da denilen curling (körling) bir spordur. Pirinçten yapılan plov (pılov) "
+                 "ikram edilir. Büyük bir karum (pazar yeri) kurmuşlardır.")
+        self.assertEqual(self.bilinmeyenler(metin), [])
+
+    def test_gorsel_atfindan_onceki_kelime_denetlenir(self):
+        metin = "Şişeden akan su berrak bir görünüme sahiptii (Görsel 2.38)."
+        self.assertEqual(self.bilinmeyenler(metin), ["sahiptii"])
+
+    def test_ozel_isim_icindeki_kucuk_harfli_kelime(self):
+        self.assertEqual(self.bilinmeyenler("Antonie van Leeuwenhoek mikroskobu geliştirdi."), [])
+
+    def test_tirnaktan_ve_tek_tirnak_kesmeden_sonra_gelen_ek(self):
+        metin = "\"Fethiye\"nin uzun yıllar başvuru kitabı olması önemlidir. TBMM‘nin oturumunda kabul edildi."
+        self.assertEqual(self.bilinmeyenler(metin), [])
+
+    def test_bosluklu_tire(self):
+        # fen5.pdf s.31 ve s.118: basılı sayfada "hedefle -" / "sınıflandırabil -"
+        metin = ("İniş gerçekleştirilmesi hedefle - mektedir. Yapıları sınıflandırabil - ceksiniz. "
+                 "Neden - sonuç ilişkisi kurunuz.")
+        bulgular = self.analizor.analiz_et([paragraf(metin)])
+        # s.118'de bir hece de eksik (doğrusu "sınıflandırabileceksiniz"): öneri verilmez
+        self.assertEqual([(b.tur, b.oneri) for b in bulgular],
+                         [("bosluklu_tire", "hedeflemektedir"), ("bosluklu_tire", None)])
+        self.assertIn("eksik harf", bulgular[1].aciklama)
+
+    def test_bozuk_kodlamali_paragraf_morfolojik_denetlenmez(self):
+        # fen5.pdf s.5: İstiklal Marşı sayfasında ı, ş, ğ harfleri "�" olarak geliyor
+        self.assertEqual(self.bilinmeyenler("Çatma, kurban olay�m, çehreni ey nazl� hilâl!"), [])
 
     def test_sik_yanlis_ayrica_bilinmeyen_sayilmaz(self):
         turler = [b.tur for b in self.analizor.analiz_et([paragraf("Bunu herkez bilir.")])]

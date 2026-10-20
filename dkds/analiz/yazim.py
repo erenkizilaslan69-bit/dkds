@@ -46,7 +46,7 @@ TURKCE_KARSILIK = {"s": "ş", "g": "ğ", "i": "ı", "c": "ç", "o": "ö", "u": "
 EN_FAZLA_DEGISIKLIK = 3  # "Düsünsene" için 2 değişiklik yeterli; 3 hızı korur
 
 # Sözlükte olmayan ama metinlerde geçen ölçü birimleri ve kısaltmalar
-BIRIMLER = {"km", "cm", "mm", "kg", "mg", "ml", "sn", "dk", "kcal", "cal", "lt", "gr", "ms", "mö"}
+BIRIMLER = {"m", "km", "cm", "mm", "kg", "mg", "ml", "sn", "dk", "kcal", "cal", "lt", "gr", "ms", "mö"}
 
 # Türk Dil Kurumunun "sık yapılan yanlışlar" listesinden seçilmiş örnekler.
 # Anahtarlar küçük harfle yazılır; iki kelimelik yanlışlar da olabilir.
@@ -96,11 +96,20 @@ _NOKTALAMA_SONRASI = re.compile(r"([^\W\d_]+)([,;:!?])([^\W\d_]+)")
 _NOKTA_SONRASI = re.compile(r"([a-zçğıöşü]{2,})\.([A-ZÇĞİÖŞÜ][a-zçğıöşü])")
 _TEKRAR = re.compile(r"\b(\w+)\s+(\1)\b", re.IGNORECASE)
 _KUCUK_HARFLE_CUMLE = re.compile(r"(\S*)([.!?])\s+([a-zçğıöşüâîû]\w*)")
+_ROMA_RAKAMI = re.compile(r"[IVXLC]+")
+# Sözlükçe maddesi: küçük harfli madde başı (en fazla üç kelime) ve hemen ardından ":"
+_SOZLUK_MADDESI = re.compile(r"(?:\s+[^\s.:;!?]+){0,2}:")
+_FORM_ETIKETI = re.compile(r"[^\W\d_]+\s+:")
 # Kelime: harflerden oluşur, kesme işareti ve kısa çizgiyle bağlanmış parçaları olabilir
 # ("Dünya’nın", "e-içerik"). Rakama veya kesme işaretine bitişik başlayan parçalar
 # ("10’uncu" içindeki "uncu") kelime sayılmaz.
-_KELIME = re.compile(r"(?<![\w'’´-])[^\W\d_]+(?:[-'’´][^\W\d_]+)*(?![\w'’´])")
-_KESME = re.compile(r"['’´]")  # ´: sosyalbilgiler5.pdf'te "New York´taki"
+_KELIME = re.compile(r"(?<![\w'’´-])[^\W\d_]+(?:[-'’´‘][^\W\d_]+)*(?![\w'’´‘])")
+# Kesme işareti yerine kullanılan karakterler. sosyalbilgiler5.pdf: "New York´taki", "TBMM‘nin"
+_KESME = re.compile(r"['’´‘]")
+# Satır sonu tirelemesinde tireden önce boşluk: "hedefle - mektedir" (fen5.pdf s.31)
+_BOSLUKLU_TIRE = re.compile(r"([^\W\d_]+) - ([a-zçğıöşü][^\W\d_]*)")
+_TIRNAK = "\"”’'"
+_ACIKLAMA_PARANTEZI = re.compile(r"\s*\([a-zçğıöşüâîû]")
 
 
 def _sik_yanlis_deseni() -> re.Pattern:
@@ -133,6 +142,31 @@ def _denetlenecek_parcalar(kelime: str) -> list[str]:
         return []
     govde = _KESME.split(kelime)[0]
     return [p for p in govde.split("-") if len(p) > 2 and p not in BIRIMLER]
+
+
+def _denetim_disi_mi(metin: str, m: re.Match) -> bool:
+    """Küçük harfli kelime bağlamı yüzünden morfolojik denetimden muaf mı?
+
+      - Küçük harfle başlayan bir parantezin hemen önünde ya da içinde: yabancı kelimenin
+        okunuşu veya bir terimin açıklaması verilir: "curling (körling)", "plov (pılov)",
+        "karum (pazar yeri)". "(Görsel 2.38)" gibi atıflar bu kuralı tetiklemez; yoksa
+        atıftan önceki sıradan kelimeler denetlenmezdi.
+      - İki büyük harfli kelimenin arasında: özel ismin parçasıdır ("Antonie van
+        Leeuwenhoek", "Leonardo da Vinci").
+      - Kelimeye bitişik kapanış tırnağından sonra: tırnak içindeki söze gelen ek
+        kesmeyle ayrılmaz ("Fethiye"nin; TDK kuralı).
+    """
+    once, sonra = metin[: m.start()], metin[m.end():]
+    if _ACIKLAMA_PARANTEZI.match(sonra):
+        return True  # kelimenin hemen ardından "(körling)"
+    acik = once.rfind("(")
+    if acik > once.rfind(")") and metin[acik + 1: acik + 2].islower():
+        return True  # kelime "(pazar yeri)" gibi küçük harfle başlayan parantezin içinde
+    onceki = once.split()[-1:] or [""]
+    sonraki = sonra.split()[:1] or [""]
+    if onceki[0][:1].isupper() and sonraki[0][:1].isupper():
+        return True
+    return len(once) >= 2 and once[-1] in _TIRNAK and once[-2].isalnum()
 
 
 def turkce_karakterli_bicimler(kelime: str) -> Iterator[str]:
@@ -190,8 +224,14 @@ class YazimAnalizoru:
             return Bulgu(sayfa=p.sayfa, paragraf=p.paragraf, kriter=KRITER, sorunlu_metin=sorunlu,
                          aciklama=aciklama, guven=guven, oneri=oneri, konum=p.konum, tur=tur)
 
+        # Form/tablo: "Adı : ... Amacı : ... Süre : ..." gibi iki nokta üst üsteleri sütun
+        # halinde hizalanmış satırlar. Metin katmanındaki boşluk hizalamadan gelir.
+        form = len(_FORM_ETIKETI.findall(metin)) >= 2
+
         sonuc = []
         for m in _NOKTALAMA_ONCESI.finditer(metin):
+            if form and m.group(3) == ":":
+                continue
             sonuc.append(bulgu("noktalama_oncesi_bosluk", m.group(),
                                f"'{m.group(3)}' işaretinden önce boşluk bırakılmaz.",
                                m.group(1) + m.group(3)))
@@ -209,10 +249,16 @@ class YazimAnalizoru:
                                    m.group(1)))
         for m in _KUCUK_HARFLE_CUMLE.finditer(metin):
             onceki, kelime = m.group(1), m.group(3)
-            if onceki.endswith((".", "…")) or onceki[-1:].isdigit() or _kucuk(onceki) in KISALTMALAR:
-                continue  # "...", "36. sayfa", "vb. araçlar"
-            if len(onceki) <= 1:
-                continue  # "a. şık", "s. 35"
+            if onceki.endswith((".", "…")) or onceki[-1:].isdigit() or _ROMA_RAKAMI.fullmatch(onceki):
+                continue  # "...", "36. sayfa", "II. mikroskop"
+            if _kucuk(onceki) in KISALTMALAR | BIRIMLER:
+                continue  # "vb. araçlar", "12 km. kuzeyinde"
+            if len(onceki) == 1:
+                continue  # ad baş harfi: "Konyar, E. ve Ergin, G. (2011)"
+            if len(kelime) == 1:
+                continue  # şık harfi ya da kısaltma: "? b. Ay’ın", "(2006). s. 72"
+            if _SOZLUK_MADDESI.match(metin, m.end(3)):
+                continue  # sözlükçe maddesi: "... gök bilimi. ataş: Kâğıtları ..."
             sonuc.append(bulgu("kucuk_harfle_cumle", f"{m.group(2)} {kelime}",
                                "Cümle büyük harfle başlamalı.", kelime[0].upper() + kelime[1:]))
         for m in _SIK_YANLIS.finditer(metin):
@@ -222,7 +268,9 @@ class YazimAnalizoru:
                 dogru = dogru[0].upper() + dogru[1:]
             sonuc.append(bulgu("sik_yanlis", yanlis, f"Sık yapılan bir yazım yanlışı; doğrusu '{dogru}'.",
                                dogru, guven=0.95))
-        if self.morfoloji is not None:
+        # Bozuk kodlamalı metinde ("ezan�ar") kelimeler parçalanır; morfolojik denetim
+        # anlamsız parçaları yazım hatası sanır. Bu sayfalar için cikarim.py zaten uyarı verir.
+        if self.morfoloji is not None and "�" not in metin:
             sonuc.extend(self._morfolojik_denetim(metin, sonuc, bulgu))
         return sonuc
 
@@ -239,11 +287,32 @@ class YazimAnalizoru:
                          "olarak aktarır.",
                          dogru, guven=guven)
 
+        # Boşluklu tire: parçalar tek tek çözümlenemez ama birleşik hali geçerlidir.
+        # Parçaları ayrıca raporlamamak için yerleri atlanacaklar arasına eklenir.
+        atlanacak: set[int] = set()
+        for m in _BOSLUKLU_TIRE.finditer(metin):
+            sol, sag = _kucuk(m.group(1)), m.group(2)
+            birlesik = m.group(1) + sag
+            if self.morfoloji.gecerli_mi(sag):
+                continue  # "Neden - sonuç": sağdaki bağımsız bir kelime, gerçek tire
+            if self.morfoloji.gecerli_mi(sol + sag):
+                sonuc.append(bulgu(
+                    "bosluklu_tire", m.group(),
+                    f"Satır sonunda bölünen kelimede tireden önce boşluk bırakılmış; "
+                    f"kelime '{birlesik}' olarak birleşmeli.", birlesik, guven=0.8))
+            else:
+                # fen5.pdf s.118: "sınıflandırabil - ceksiniz" -> "sınıflandırabileceksiniz"
+                sonuc.append(bulgu(
+                    "bosluklu_tire", m.group(),
+                    f"Satır sonunda bölünen kelimede tireden önce boşluk bırakılmış. Birleşik hali "
+                    f"('{birlesik}') de çözümlenemedi; kelimede eksik harf olabilir.", None, guven=0.6))
+            atlanacak.update((m.start(1), m.start(2)))
+
         for m in _KELIME.finditer(metin):
             kelime = m.group()
             kucuk = _kucuk(kelime)
-            if kucuk in sik_yanlislar:
-                continue  # zaten sık yanlış olarak raporlandı
+            if kucuk in sik_yanlislar or m.start() in atlanacak:
+                continue  # zaten sık yanlış ya da boşluklu tire olarak raporlandı
 
             # 1) Büyük harfle başlayan kelime: özel isim olabilir, bilinmeyen kelime denetlenmez.
             #    Ama sıradan kelime olarak çözümlenemiyor, Türkçe karakterli biçimi geçerli ve
@@ -264,7 +333,11 @@ class YazimAnalizoru:
                         sonuc.append(karakter_kaybi(kelime, dogru[0].upper() + dogru[1:], KARAKTER_KAYBI_GUVEN))
                 continue
 
-            # 2) Küçük harfli kelime: çözümlenemeyen parça önce karakter kaybı açısından denenir
+            # 2) Küçük harfli kelime: çözümlenemeyen parça önce karakter kaybı açısından denenir.
+            #    Denetlenmeyen durumlar (bkz. _denetim_disi_mi): yabancı kelimenin parantezli
+            #    okunuşu, özel isim içindeki küçük harfli kelime, tırnaktan sonra gelen ek.
+            if _denetim_disi_mi(metin, m):
+                continue
             for parca in _denetlenecek_parcalar(kelime):
                 if self.morfoloji.gecerli_mi(parca):
                     continue
