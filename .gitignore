@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Ders kitabı PDF'leri ve çıktılar (büyük dosyalar, repoya eklenmez)
+veri/*
+!veri/.gitkeep
+cikti/*
+!cikti/.gitkeep
+
+# Editör / sistem
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
