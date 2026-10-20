@@ -26,22 +26,32 @@ def _zeyrek_yamasi() -> None:
     """zeyrek 0.1.3'teki durum bozulması hatasını giderir.
 
     Hata: aynı kelime iki kez çözümlenince farklı sonuç çıkabiliyor
-    ("olacak" önce geçerli, sonra geçersiz). Sebebi:
+    ("olacak" önce geçerli, sonra geçersiz); hatta programın her çalıştırılışında
+    farklı kelimeler ("adı", "adlı") geçersiz çıkabiliyor. Sebebi:
       1. calculate_phonetic_attributes() sonuçlarını lru_cache ile saklıyor ve
-         değiştirilebilir bir küme (set) döndürüyor. Çözümleyici bu kümeye
-         ekleme/çıkarma yaptığında önbellekteki değer de bozuluyor.
+         değiştirilebilir bir küme (set) döndürüyor. Hem sözlük kökleri üretilirken
+         (morphotactics) hem çözümleme sırasında (rulebasedanalyzer) bu kümeye
+         ekleme/çıkarma yapılıyor ve önbellekteki değer bozuluyor. Kökler Python
+         kümelerinin sırasıyla üretildiği için bozulma her çalıştırmada farklıdır.
       2. İlk arama yolu, sözlükteki kökün ses özellikleri kümesini kopyalamadan
          kullanıyor; ona yapılan değişiklik de sonraki kelimeleri etkiliyor.
     Çözüm: iki noktada da kümenin kopyası verilir. Kütüphane dosyaları
-    değiştirilmez; yama yalnızca bu programın çalışması sırasında geçerlidir.
+    değiştirilmez; yama yalnızca bu programın çalışması sırasında geçerlidir ve
+    MorphAnalyzer oluşturulmadan önce uygulanmalıdır.
     """
     global _YAMA_UYGULANDI
     if _YAMA_UYGULANDI:
         return
-    from zeyrek import morphotactics, rulebasedanalyzer
+    from zeyrek import attributes, morphotactics, rulebasedanalyzer
 
-    orijinal_hesap = rulebasedanalyzer.calculate_phonetic_attributes
-    rulebasedanalyzer.calculate_phonetic_attributes = lambda *a, **k: set(orijinal_hesap(*a, **k))
+    orijinal_hesap = attributes.calculate_phonetic_attributes
+
+    def kopyalayan_hesap(*a, **k):
+        return set(orijinal_hesap(*a, **k))
+
+    # Fonksiyonu adıyla içe aktaran her modülde değiştirilmeli
+    for modul in (attributes, morphotactics, rulebasedanalyzer):
+        modul.calculate_phonetic_attributes = kopyalayan_hesap
 
     orijinal_baslangic = morphotactics.SearchPath.initial.__func__
 
