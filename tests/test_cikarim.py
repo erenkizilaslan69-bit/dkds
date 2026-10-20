@@ -64,6 +64,10 @@ class CikarimTest(unittest.TestCase):
         self.assertIn("kitaplar kelimesi", ilk)
         self.assertNotIn("\n", ilk)
 
+    def test_paragraf_turu_atanir(self):
+        turler = {p.tur for p in self.sonuc.paragraflar}
+        self.assertEqual(turler, {"govde"})
+
     def test_konum_bilgisi_var(self):
         x0, y0, x1, y1 = self.sonuc.paragraflar[0].konum
         self.assertLess(x0, x1)

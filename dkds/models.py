@@ -44,6 +44,7 @@ class Paragraf:
     metin: str
     konum: Konum
     ocr: bool = False  # True ise metin OCR ile okundu, karakter hataları olabilir
+    tur: str = "govde"  # baslik, govde, soru, liste, etiket (bkz. siniflandirma.py)
 
 
 @dataclass

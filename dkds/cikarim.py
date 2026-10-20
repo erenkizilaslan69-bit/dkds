@@ -14,6 +14,7 @@ except ImportError:  # eski sürümler yalnızca "fitz" adıyla gelir
 
 from .duzen import bolunmus_paragraflari_birlestir, ust_alt_bilgi_temizle
 from .models import Blok, CikarimSonucu, Paragraf
+from .siniflandirma import sayfa_turleri
 from .temizleme import dolgu_mu, harf_iceriyor_mu, kodlama_bozuk_mu, temizle
 
 # Bir sayfada bundan az karakter varsa ve görsel içeriyorsa "taranmış" kabul edilir.
@@ -72,25 +73,27 @@ def pdf_oku(yol: str | Path, ocr: bool = True, dil: str = "tur") -> CikarimSonuc
     paragraflar: list[Paragraf] = []
     for sayfa_no in sorted(sayfalar):
         bloklar = bolunmus_paragraflari_birlestir(sayfalar[sayfa_no])
-        sayfa_metni = []
-        no = 0
+        sayfa_paragraflari: list[Paragraf] = []
         for b in bloklar:
             if dolgu_mu(b.metin):
                 continue
             metin = temizle(b.metin)
             if not harf_iceriyor_mu(metin):  # boş, yalnızca sayı veya simge
                 continue
-            no += 1
-            sayfa_metni.append(metin)
-            paragraflar.append(
+            sayfa_paragraflari.append(
                 Paragraf(
                     sayfa=sayfa_no,
-                    paragraf=no,
+                    paragraf=len(sayfa_paragraflari) + 1,
                     metin=metin,
                     konum=b.konum,
                     ocr=sayfa_no in ocr_sayfalari,
                 )
             )
+        sayfa_metni = [p.metin for p in sayfa_paragraflari]
+        # Tür sayfa bağlamıyla belirlenir (ör. harita sayfasındaki büyük harfli adlar)
+        for p, tur in zip(sayfa_paragraflari, sayfa_turleri(sayfa_metni)):
+            p.tur = tur
+        paragraflar.extend(sayfa_paragraflari)
         if kodlama_bozuk_mu(" ".join(sayfa_metni)):
             uyarilar.append(
                 f"Sayfa {sayfa_no}: metin bozuk yazı tipi kodlamasıyla çıkarılmış olabilir "

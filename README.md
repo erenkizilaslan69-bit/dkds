@@ -26,8 +26,9 @@ PDF ─► Metin çıkarma ─► Temizleme ─► Analizörler ─► Bulgular 
 | `dkds/cikarim.py` | PyMuPDF ile PDF okuma, taranmış sayfalarda OCR |
 | `dkds/duzen.py` | Üst/alt bilgi temizliği, bölünmüş paragrafların birleştirilmesi |
 | `dkds/temizleme.py` | Satır sonu tirelemesi, ligatürler, bozuk kodlama tespiti |
+| `dkds/siniflandirma.py` | Paragraf türü: `baslik`, `govde`, `soru`, `liste`, `etiket` (kural tabanlı) |
 
-`duzen.py` ve `temizleme.py` hiçbir PDF kütüphanesine bağlı değildir; böylece bağımsız olarak test edilebilirler.
+`duzen.py`, `temizleme.py` ve `siniflandirma.py` hiçbir PDF kütüphanesine bağlı değildir; böylece bağımsız olarak test edilebilirler.
 
 ## Kurulum (Windows)
 
@@ -54,7 +55,7 @@ python -m dkds veri\kitap.pdf
   "kaynak": "kitap.pdf",
   "sayfa_sayisi": 212,
   "paragraflar": [
-    {"sayfa": 14, "paragraf": 2, "metin": "Fotosentez, bitkilerin ...", "konum": [56.7, 120.3, 538.6, 188.1], "ocr": false}
+    {"sayfa": 14, "paragraf": 2, "metin": "Fotosentez, bitkilerin ...", "konum": [56.7, 120.3, 538.6, 188.1], "ocr": false, "tur": "govde"}
   ],
   "uyarilar": ["Sayfa 3: taranmış görünüyor ancak OCR yapılamadı (...)"]
 }

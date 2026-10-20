@@ -46,7 +46,10 @@ hata tespiti, hatanın açıklanması ve hatanın bulunduğu sayfa/paragrafın g
 - Alt bilgi örnekleri: "10 5. SINIF / FEN BİLİMLERİ", "58 2. ÜNİTE / KUVVETİ TANIYALIM" → temizlenmeli.
 - Etkinlik sayfalarında "......" cevap satırları çok fazla → `dolgu_mu` ile atılıyor.
 - "BİLGİ İSTASYONU", "ÖN DEĞERLENDİRME İSTASYONU" gibi kutu başlıkları ayrı paragraf olarak gelir;
-  ileride paragraf türü (başlık / gövde / soru) ayrımı gerekebilir.
+  `siniflandirma.py` her paragrafa tür atar (baslik / govde / soru / liste / etiket).
+- s.146–147 haritadır (yüzlerce etiket); sayfa bağlamı kuralıyla tamamı etiket sayılır.
+- Bilinen sınırlama: font bilgisi kullanılmadığı için "Temel Kabuller" gibi ilk harfi büyük
+  alt başlıklar etiket olarak sınıflanır.
 - Düzyazı örnek sayfası: s.35 (Ay'ın yüzeyi). Paragraf ayrımını burada kontrol et.
 
 ## Çalışma şekli
