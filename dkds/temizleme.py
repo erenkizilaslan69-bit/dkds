@@ -53,6 +53,15 @@ def dolgu_mu(metin: str) -> bool:
     return not any(k.isalnum() for k in kalan)
 
 
+def harf_iceriyor_mu(metin: str) -> bool:
+    """Metinde en az bir harf var mı?
+
+    Kenardaki soru numaraları ("1", "2. 3."), şekil üzerindeki sayılar gibi
+    harfsiz bloklar yazım, okunabilirlik veya tutarlılık analizi için anlam taşımaz.
+    """
+    return any(k.isalpha() for k in metin)
+
+
 _BEKLENEN = re.compile(
     r"[A-Za-z0-9ÇĞİÖŞÜçğıöşüÂÎÛâîû\s.,;:!?'\"()\[\]{}\-–—…/%+=*&#@<>«»“”‘’°⁰¹²³½¼•●▪–]"
 )

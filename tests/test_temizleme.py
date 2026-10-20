@@ -1,6 +1,6 @@
 import unittest
 
-from dkds.temizleme import dolgu_mu, kodlama_bozuk_mu, temizle
+from dkds.temizleme import dolgu_mu, harf_iceriyor_mu, kodlama_bozuk_mu, temizle
 
 
 class TemizleTest(unittest.TestCase):
@@ -41,6 +41,16 @@ class DolguTest(unittest.TestCase):
 
     def test_metin_icindeki_noktalar_silinir(self):
         self.assertEqual(temizle("Cevap: ..........\nSonraki soru"), "Cevap: Sonraki soru")
+
+
+class HarfTest(unittest.TestCase):
+    def test_sayi_ve_simge_harf_icermez(self):
+        for metin in ("1", "2. 3.", "12.00", "!", ""):
+            self.assertFalse(harf_iceriyor_mu(metin), metin)
+
+    def test_turkce_harf_ve_birim(self):
+        for metin in ("Ay", "ı", "50°D", "0 100 200 km"):
+            self.assertTrue(harf_iceriyor_mu(metin), metin)
 
 
 class KodlamaTest(unittest.TestCase):

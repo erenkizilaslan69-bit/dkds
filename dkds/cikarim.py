@@ -14,7 +14,7 @@ except ImportError:  # eski sürümler yalnızca "fitz" adıyla gelir
 
 from .duzen import bolunmus_paragraflari_birlestir, ust_alt_bilgi_temizle
 from .models import Blok, CikarimSonucu, Paragraf
-from .temizleme import dolgu_mu, kodlama_bozuk_mu, temizle
+from .temizleme import dolgu_mu, harf_iceriyor_mu, kodlama_bozuk_mu, temizle
 
 # Bir sayfada bundan az karakter varsa ve görsel içeriyorsa "taranmış" kabul edilir.
 TARANMIS_ESIK = 30
@@ -78,7 +78,7 @@ def pdf_oku(yol: str | Path, ocr: bool = True, dil: str = "tur") -> CikarimSonuc
             if dolgu_mu(b.metin):
                 continue
             metin = temizle(b.metin)
-            if not metin:
+            if not harf_iceriyor_mu(metin):  # boş, yalnızca sayı veya simge
                 continue
             no += 1
             sayfa_metni.append(metin)
