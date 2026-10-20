@@ -9,6 +9,12 @@ Kesin kurallar (güven yüksek):
     tekrar                    "ve ve"           -> "ve"
     kucuk_harfle_cumle        ". bu cümle"      -> ". Bu cümle"
     sik_yanlis                "herkez"          -> "herkes"
+
+Morfolojik denetim (güven orta):
+    bilinmeyen_kelime         zeyrek'in çözümleyemediği kelime aday hatadır.
+                              Özel isimler (büyük harfle başlayan), kısaltmalar,
+                              TAMAMEN BÜYÜK HARFLİ kelimeler, sayılar ve birimler
+                              denetlenmez.
 """
 from __future__ import annotations
 
@@ -16,11 +22,16 @@ import re
 from collections.abc import Iterable
 
 from ..models import Bulgu, Paragraf
+from .morfoloji import Morfoloji
 
 KRITER = "yazim"
 INCELENEN_TURLER = {"govde", "soru", "liste"}
 
 KESIN_GUVEN = 0.9
+BILINMEYEN_GUVEN = 0.5
+
+# Sözlükte olmayan ama metinlerde geçen ölçü birimleri ve kısaltmalar
+BIRIMLER = {"km", "cm", "mm", "kg", "mg", "ml", "sn", "dk", "kcal", "cal", "lt", "gr", "ms", "mö"}
 
 # Türk Dil Kurumunun "sık yapılan yanlışlar" listesinden seçilmiş örnekler.
 # Anahtarlar küçük harfle yazılır; iki kelimelik yanlışlar da olabilir.
@@ -70,6 +81,11 @@ _NOKTALAMA_SONRASI = re.compile(r"([^\W\d_]+)([,;:!?])([^\W\d_]+)")
 _NOKTA_SONRASI = re.compile(r"([a-zçğıöşü]{2,})\.([A-ZÇĞİÖŞÜ][a-zçğıöşü])")
 _TEKRAR = re.compile(r"\b(\w+)\s+(\1)\b", re.IGNORECASE)
 _KUCUK_HARFLE_CUMLE = re.compile(r"(\S*)([.!?])\s+([a-zçğıöşüâîû]\w*)")
+# Kelime: harflerden oluşur, kesme işareti ve kısa çizgiyle bağlanmış parçaları olabilir
+# ("Dünya’nın", "e-içerik"). Rakama veya kesme işaretine bitişik başlayan parçalar
+# ("10’uncu" içindeki "uncu") kelime sayılmaz.
+_KELIME = re.compile(r"(?<![\w'’-])[^\W\d_]+(?:[-'’][^\W\d_]+)*(?![\w'’])")
+_KESME = re.compile(r"['’]")
 
 
 def _sik_yanlis_deseni() -> re.Pattern:
@@ -86,7 +102,31 @@ def _kucuk(metin: str) -> str:
     return metin.replace("I", "ı").replace("İ", "i").lower()
 
 
+def _denetlenecek_parcalar(kelime: str) -> list[str]:
+    """Bir kelimenin morfolojik olarak denetlenecek parçaları (küçük harfle).
+
+    Boş liste dönerse kelime denetlenmez:
+      - Büyük harf içeren kelimeler: özel isim ("Hattuşa"), kısaltma ("MÖ", "pH")
+        veya TAMAMEN BÜYÜK HARFLİ yazı. Büyük harfli yazıda sosyalbilgiler5.pdf'te
+        İ harfi metin katmanında I olarak geliyor ("ÖĞRENELIM"); denetlemek yanlış
+        alarm üretir.
+      - Kesme işaretinden sonraki ek ("km’dir" -> "km") ayrıca denetlenmez.
+      - İki harfli parçalar ve birimler ("km", "kcal").
+    Kısa çizgiyle bağlı kelimelerin ("e-içerik") her parçası ayrı denetlenir.
+    """
+    if any(k.isupper() for k in kelime):
+        return []
+    govde = _KESME.split(kelime)[0]
+    return [p for p in govde.split("-") if len(p) > 2 and p not in BIRIMLER]
+
+
 class YazimAnalizoru:
+    def __init__(self, morfoloji: Morfoloji | None = None, sozluk_denetimi: bool = True) -> None:
+        """sozluk_denetimi=False ise yalnızca kesin kurallar uygulanır (zeyrek yüklenmez)."""
+        if sozluk_denetimi and morfoloji is None:
+            morfoloji = Morfoloji()
+        self.morfoloji = morfoloji if sozluk_denetimi else None
+
     def analiz_et(self, paragraflar: Iterable[Paragraf]) -> list[Bulgu]:
         bulgular: list[Bulgu] = []
         for p in paragraflar:
@@ -133,4 +173,17 @@ class YazimAnalizoru:
                 dogru = dogru[0].upper() + dogru[1:]
             sonuc.append(bulgu("sik_yanlis", yanlis, f"Sık yapılan bir yazım yanlışı; doğrusu '{dogru}'.",
                                dogru, guven=0.95))
+        if self.morfoloji is not None:
+            sik_yanlislar = {_kucuk(b.sorunlu_metin) for b in sonuc if b.tur == "sik_yanlis"}
+            for m in _KELIME.finditer(metin):
+                kelime = m.group()
+                if _kucuk(kelime) in sik_yanlislar:
+                    continue  # zaten sık yanlış olarak raporlandı
+                for parca in _denetlenecek_parcalar(kelime):
+                    if not self.morfoloji.gecerli_mi(parca):
+                        sonuc.append(bulgu(
+                            "bilinmeyen_kelime", kelime,
+                            f"'{parca}' Türkçe kök ve eklere ayrılamadı; yazım hatası olabilir.",
+                            None, guven=BILINMEYEN_GUVEN))
+                        break
         return sonuc

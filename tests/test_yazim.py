@@ -1,6 +1,7 @@
 """Yazım analizörü testleri."""
 import unittest
 
+from dkds.analiz.morfoloji import Morfoloji
 from dkds.analiz.yazim import KRITER, YazimAnalizoru
 from dkds.models import Paragraf
 
@@ -12,7 +13,7 @@ def paragraf(metin, tur="govde"):
 class KesinKurallarTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.analizor = YazimAnalizoru()
+        cls.analizor = YazimAnalizoru(sozluk_denetimi=False)
 
     def turler(self, metin, tur="govde"):
         return [b.tur for b in self.analizor.analiz_et([paragraf(metin, tur)])]
@@ -70,6 +71,51 @@ class KesinKurallarTest(unittest.TestCase):
     def test_soru_ve_liste_incelenir(self):
         self.assertIn("sik_yanlis", self.turler("Herkez bunu biliyor mu?", tur="soru"))
         self.assertIn("sik_yanlis", self.turler("- Herkez grup oluştursun.", tur="liste"))
+
+
+class BilinmeyenKelimeTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.morfoloji = Morfoloji()
+        cls.analizor = YazimAnalizoru(morfoloji=cls.morfoloji)
+
+    def bilinmeyenler(self, metin):
+        return [b.sorunlu_metin for b in self.analizor.analiz_et([paragraf(metin)]) if b.tur == "bilinmeyen_kelime"]
+
+    def test_dogru_metin_bulgu_uretmez(self):
+        metin = "Dünya’nın dönme hareketi hakkında bildiklerinizi yazınız. Gözlemlerinizi e-içerik ile paylaşınız."
+        self.assertEqual(self.bilinmeyenler(metin), [])
+
+    def test_cozumlenemeyen_kelime(self):
+        self.assertEqual(self.bilinmeyenler("Kitapları dikkatle okdum."), ["okdum"])
+
+    def test_ozel_isim_buyuk_harf_ve_birim_denetlenmez(self):
+        metin = "Hattuşa kenti 12 km uzaktadır. ÖĞRENELIM bölümünde 10’uncu sayfayı inceleyiniz."
+        self.assertEqual(self.bilinmeyenler(metin), [])
+
+    def test_sik_yanlis_ayrica_bilinmeyen_sayilmaz(self):
+        turler = [b.tur for b in self.analizor.analiz_et([paragraf("Bunu herkez bilir.")])]
+        self.assertEqual(turler, ["sik_yanlis"])
+
+    def test_kucuk_harfli_kelime_ozel_isim_olarak_gecerli_sayilmaz(self):
+        # zeyrek sözlüğünde "Günes" özel isim olarak var; küçük harfle yazılınca geçerli değildir
+        self.assertFalse(self.morfoloji.gecerli_mi("günes"))
+        self.assertTrue(self.morfoloji.gecerli_mi("günes", ozel_isim=True))
+
+    def test_zeyrek_tekrar_cozumlemede_ayni_sonucu_verir(self):
+        # zeyrek 0.1.3 hatası: yama olmadan "olacak" ikinci çözümlemede geçersiz çıkıyordu
+        kelimeler = ["alır", "olacak", "olup", "yapılmıştır", "sağlayan", "gelerek", "bakıldığında"]
+        cozumle = self.morfoloji._analizor._parse
+        ilk = [len(cozumle(k)) for k in kelimeler]
+        ikinci = [len(cozumle(k)) for k in kelimeler]
+        self.assertEqual(ilk, ikinci)
+        self.assertTrue(all(ilk))
+
+    def test_sonuclar_onbellege_alinir(self):
+        self.analizor.analiz_et([paragraf("Ay bir uydudur. Ay döner.")])
+        boyut = self.morfoloji.onbellek_boyutu
+        self.analizor.analiz_et([paragraf("Ay bir uydudur. Ay döner.")])
+        self.assertEqual(self.morfoloji.onbellek_boyutu, boyut)
 
 
 if __name__ == "__main__":
