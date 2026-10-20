@@ -17,7 +17,7 @@ LIGATURLER = {
 _TIRELEME = re.compile(rf"(\w)-[ \t]*\n[ \t]*([{KUCUK_HARFLER}])")
 _GERCEK_TIRE = re.compile(r"(\w)-[ \t]*\n[ \t]*(?=[A-ZÇĞİÖŞÜÂÎÛ0-9])")
 _SATIR_SONU = re.compile(r"[ \t]*\n[ \t]*")
-_COKLU_BOSLUK = re.compile(r"[ \t]{2,}")
+_COKLU_BOSLUK = re.compile(r"[ \t]+")  # tek sekme de ("•\tMadde") boşluğa dönüşür
 _DOLGU = re.compile(r"[.…_]{5,}")
 
 

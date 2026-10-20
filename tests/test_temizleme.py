@@ -23,6 +23,10 @@ class TemizleTest(unittest.TestCase):
     def test_coklu_bosluk(self):
         self.assertEqual(temizle("  çok    boşluk \t var  "), "çok boşluk var")
 
+    def test_tek_sekme_bosluga_donusur(self):
+        # fen5.pdf s.14: madde imlerinden sonra tek sekme geliyor
+        self.assertEqual(temizle("•\tLaboratuvara girmeden önce"), "• Laboratuvara girmeden önce")
+
 
 class DolguTest(unittest.TestCase):
     def test_cevap_satirlari_dolgu(self):
