@@ -40,17 +40,17 @@ def temizle(metin: str) -> str:
     return metin.strip()
 
 
-def dolgu_mu(metin: str, esik: float = 0.6) -> bool:
-    """Blok çoğunlukla cevap boşluğu (nokta/alt çizgi dizileri) mi?
+def dolgu_mu(metin: str) -> bool:
+    """Blok yalnızca cevap boşluğundan (nokta/alt çizgi dizileri) mı oluşuyor?
 
     Ders kitaplarındaki "......" satırları öğrencinin yazacağı yerlerdir; içerik
-    değildir ve analizörlere gönderilmemelidir.
+    değildir ve analizörlere gönderilmemelidir. Ancak PDF'te soru ile altındaki
+    cevap satırları çoğu zaman aynı blokta gelir. Bu yüzden oran hesabı yerine
+    dolgu dizileri silinir ve geriye harf ya da rakam kalıp kalmadığına bakılır;
+    böylece uzun cevap satırları sorunun kendisini sildirmez.
     """
-    dolu = [k for k in metin if not k.isspace()]
-    if not dolu:
-        return True
-    dolgu = sum(1 for k in dolu if k in "._…")
-    return dolgu / len(dolu) >= esik
+    kalan = _DOLGU.sub("", metin)
+    return not any(k.isalnum() for k in kalan)
 
 
 _BEKLENEN = re.compile(

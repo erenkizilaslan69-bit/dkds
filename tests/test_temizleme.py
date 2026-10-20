@@ -31,6 +31,14 @@ class DolguTest(unittest.TestCase):
     def test_soru_ve_cevap_satiri_dolgu_degil(self):
         self.assertFalse(dolgu_mu("Kuvvet bir cismin yönünü değiştirebilir mi?\n..........\n"))
 
+    def test_uzun_cevap_satirlari_soruyu_sildirmez(self):
+        # fen5.pdf s.20: soru ve altındaki üç uzun cevap satırı tek blokta geliyor
+        nokta = "." * 125 + "\n"
+        self.assertFalse(dolgu_mu("Dünya’nın dönme hareketi hakkında bildiklerinizi yazınız.\n" + nokta * 3))
+
+    def test_alt_cizgi_ve_uc_nokta_dolgu(self):
+        self.assertTrue(dolgu_mu("______________\n…………………\n"))
+
     def test_metin_icindeki_noktalar_silinir(self):
         self.assertEqual(temizle("Cevap: ..........\nSonraki soru"), "Cevap: Sonraki soru")
 
