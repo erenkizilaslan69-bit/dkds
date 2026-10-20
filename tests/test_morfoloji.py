@@ -37,6 +37,22 @@ class MorfolojiTest(unittest.TestCase):
             sonuclar.add(cikti)
         self.assertEqual(sonuclar, {"1" * len(KELIMELER)})
 
+    def test_bitisik_ile_eki(self):
+        # zeyrek yumuşayan ünsüzle biten köklerde bitişik "-la/-le" ekini tanımıyor
+        for kelime in ("araçla", "mercekle", "sebeple", "hayvancılıkla", "mikroskopla", "büyüteçle"):
+            self.assertTrue(self.morfoloji.gecerli_mi(kelime), kelime)
+
+    def test_ile_eki_unlu_uyumuna_uymali(self):
+        self.assertFalse(self.morfoloji.gecerli_mi("kitaple"))
+
+    def test_maksizin_eki(self):
+        self.assertTrue(self.morfoloji.gecerli_mi("olmaksızın"))
+        self.assertTrue(self.morfoloji.gecerli_mi("düşünmeksizin"))
+
+    def test_ek_sozluk(self):
+        for kelime in ("karekodu", "lizozom", "obsidiyenden", "zigguratların", "abeslang"):
+            self.assertTrue(self.morfoloji.gecerli_mi(kelime), kelime)
+
     def test_kucuk_harfli_kelime_ozel_isim_olarak_gecerli_sayilmaz(self):
         # zeyrek sözlüğünde "Günes" özel isim olarak var; küçük harfle yazılınca geçerli değildir
         self.assertFalse(self.morfoloji.gecerli_mi("günes"))

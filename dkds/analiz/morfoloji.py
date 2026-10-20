@@ -18,6 +18,18 @@ veri dosyası ister; kelimelere ayırmayı kendimiz yaptığımız için tek kel
 from __future__ import annotations
 
 import logging
+from pathlib import Path
+
+# zeyrek sözlüğünde olmayan, TDK sözlüğünde bulunan sözcükler (bkz. dosyanın kendisi)
+EK_SOZLUK = Path(__file__).with_name("ek_sozluk.txt")
+
+KALIN_UNLULER = set("aıou")
+UNLULER = set("aeıioöuüâîû")
+
+# zeyrek'in tanımadığı ekler: (ek, köke eklenecek mastar eki)
+#   "araçla" -> "araç": sert ünsüzle biten köke bitişik "ile" ("mercekle", "sebeple")
+#   "olmaksızın" -> "olmak"
+YEDEK_EKLER = (("la", ""), ("le", ""), ("maksızın", "mak"), ("meksizin", "mek"))
 
 _YAMA_UYGULANDI = False
 
@@ -72,6 +84,7 @@ class Morfoloji:
         logging.getLogger("zeyrek").setLevel(logging.ERROR)
         _zeyrek_yamasi()
         self._analizor = zeyrek.MorphAnalyzer()
+        self._analizor.add_dictionary(str(EK_SOZLUK))
         # kelime -> (sıradan kelime olarak geçerli, özel isim dahil geçerli)
         self._onbellek: dict[str, tuple[bool, bool]] = {}
 
@@ -80,9 +93,31 @@ class Morfoloji:
         if kelime not in self._onbellek:
             cozumler = self._analizor._parse(kelime)
             siradan = any(c.dict_item.secondary_pos.name != "ProperNoun" for c in cozumler)
-            self._onbellek[kelime] = (siradan, bool(cozumler))
+            if not siradan:
+                siradan = self._yedek_ekle_gecerli_mi(kelime)
+            self._onbellek[kelime] = (siradan, siradan or bool(cozumler))
         siradan, herhangi = self._onbellek[kelime]
         return herhangi if ozel_isim else siradan
+
+    def _yedek_ekle_gecerli_mi(self, kelime: str) -> bool:
+        """zeyrek'in tanımadığı bir ek atılınca kalan kök geçerli mi?
+
+        "mercekle" -> "mercek" geçerli, "-le" eki ince ünlülü köke uyuyor -> geçerli.
+        "kitaple" -> "-le" eki kalın ünlülü köke uymuyor -> geçersiz kalır.
+        """
+        for ek, mastar in YEDEK_EKLER:
+            if not kelime.endswith(ek) or len(kelime) - len(ek) < 2:  # "ol-maksızın"
+                continue
+            kok = kelime[: -len(ek)]
+            if ek in ("la", "le"):
+                if kok[-1] in UNLULER:
+                    continue  # ünlüden sonra "-yla/-yle" gelir; zeyrek bunu zaten tanıyor
+                son_unlu = next((h for h in reversed(kok) if h in UNLULER), None)
+                if son_unlu is None or (son_unlu in KALIN_UNLULER) != (ek == "la"):
+                    continue
+            if self.gecerli_mi(kok + mastar):
+                return True
+        return False
 
     @property
     def onbellek_boyutu(self) -> int:
