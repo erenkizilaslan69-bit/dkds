@@ -68,6 +68,24 @@ class BirlestirmeTest(unittest.TestCase):
         b = blok(1, 122, 140, "kuvvet\nkuvvet birimi\ndinamometre\n")
         self.assertEqual(len(bolunmus_paragraflari_birlestir([a, b])), 2)
 
+    def test_ust_uste_binen_satirlar_birlesir(self):
+        # sosyalbilgiler5.pdf s.127: sıkı satır aralığında kutular 1.8 pt üst üste biniyor
+        a = blok(1, 448.3, 463.3, "yıkıntıların üst üste birik-\n")
+        b = blok(1, 461.5, 476.5, "mesiyle oluşan yapay tepedir.\n")
+        sonuc = bolunmus_paragraflari_birlestir([a, b])
+        self.assertEqual(len(sonuc), 1)
+        self.assertEqual(sonuc[0].y1, 476.5)
+
+    def test_araya_giren_bloktan_sonra_da_birlesir(self):
+        # sosyalbilgiler5.pdf s.64: zaman çizelgesinde yan sütundaki kutu araya giriyor
+        a = blok(1, 372, 422, "1948\n8 Mart'ta\npetrol çıkarılmaya\n", x0=231, x1=323)
+        yan = blok(1, 372, 437, "1946\n17 Ocak'ta\npetrol bulundu.\n", x0=388, x1=470)
+        b = blok(1, 419, 437, "başlandı.\n", x0=254, x1=297)
+        sonuc = bolunmus_paragraflari_birlestir([a, yan, b])
+        self.assertEqual(len(sonuc), 2)
+        self.assertTrue(sonuc[0].metin.endswith("başlandı.\n"))
+        self.assertIn("bulundu.", sonuc[1].metin)
+
     def test_farkli_sutunlar_birlesmez(self):
         a = blok(1, 100, 118, "sol sütunda biten metin\n", x0=50, x1=290)
         b = blok(1, 100, 118, "sağ sütunda başlayan metin\n", x0=310, x1=550)

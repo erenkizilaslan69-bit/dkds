@@ -77,7 +77,9 @@ def birlestirilmeli_mi(a: Blok, b: Blok) -> bool:
 
     Hepsi sağlanmalı:
       - Aynı sütunda olmaları (yatayda en az %50 örtüşme)
-      - Aralarındaki dikey boşluğun bir satır yüksekliğinden az olması
+      - Aralarındaki dikey boşluğun bir satır yüksekliğinden az olması. Sıkı satır
+        aralıklı kitaplarda satır kutuları biraz üst üste biner (sosyalbilgiler5.pdf
+        s.127'de -1.8 pt); yarım satıra kadar üst üste binmeye izin verilir.
       - a'nın cümle sonu işaretiyle bitmemesi
       - a'nın tamamen büyük harfli (başlık) olmaması: "ANAHTAR KAVRAMLAR" altındaki
         "kuvvet, kütle..." listesine eklenmemeli
@@ -86,7 +88,8 @@ def birlestirilmeli_mi(a: Blok, b: Blok) -> bool:
     if _yatay_ortusme(a, b) < 0.5:
         return False
     bosluk = b.y0 - a.y1
-    if bosluk < -1 or bosluk > a.satir_yuksekligi:
+    satir = max(a.satir_yuksekligi, b.satir_yuksekligi)
+    if bosluk < -satir / 2 or bosluk > satir:
         return False
     a_metin, b_metin = a.metin.rstrip(), b.metin.lstrip()
     if not a_metin or not b_metin or a_metin.endswith(CUMLE_SONU):
@@ -102,19 +105,29 @@ def _tamamen_buyuk_harf(metin: str) -> bool:
 
 
 def bolunmus_paragraflari_birlestir(bloklar: list[Blok]) -> list[Blok]:
-    """Okuma sırasındaki ardışık blokları gerekiyorsa tek blokta birleştirir."""
+    """Bir paragrafın devamı olan blokları önceki parçasıyla tek blokta birleştirir.
+
+    Her blok için yalnızca hemen önceki bloğa değil, okuma sırasında kendinden
+    önce gelen bloklara da (sondan başa doğru) bakılır. Zaman çizelgesi gibi çok
+    sütunlu düzenlerde başka sütundan bir blok araya girebilir: sosyalbilgiler5.pdf
+    s.64'te "1948 ... petrol çıkarılmaya" ile devamı "başlandı." arasına yan
+    sütundaki bir kutu giriyor. Aynı sütun ve dikey yakınlık koşulları yanlış
+    bloğa eklenmeyi önler.
+    """
     sonuc: list[Blok] = []
     for b in bloklar:
-        if sonuc and birlestirilmeli_mi(sonuc[-1], b):
-            a = sonuc[-1]
-            sonuc[-1] = Blok(
-                sayfa=a.sayfa,
-                x0=min(a.x0, b.x0),
-                y0=a.y0,
-                x1=max(a.x1, b.x1),
-                y1=b.y1,
-                metin=a.metin.rstrip("\n") + "\n" + b.metin,
-            )
+        for i in range(len(sonuc) - 1, -1, -1):
+            a = sonuc[i]
+            if birlestirilmeli_mi(a, b):
+                sonuc[i] = Blok(
+                    sayfa=a.sayfa,
+                    x0=min(a.x0, b.x0),
+                    y0=a.y0,
+                    x1=max(a.x1, b.x1),
+                    y1=b.y1,
+                    metin=a.metin.rstrip("\n") + "\n" + b.metin,
+                )
+                break
         else:
             sonuc.append(b)
     return sonuc
