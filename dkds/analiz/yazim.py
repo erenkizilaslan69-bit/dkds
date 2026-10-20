@@ -15,11 +15,20 @@ Morfolojik denetim (güven orta):
                               Özel isimler (büyük harfle başlayan), kısaltmalar,
                               TAMAMEN BÜYÜK HARFLİ kelimeler, sayılar ve birimler
                               denetlenmez.
+
+Olası metin çıkarma sorunu (güven düşük, yazım hatası sayılmaz):
+    karakter_kaybi            Kelime s->ş, g->ğ, i->ı, c->ç, o->ö, u->ü değişiklikleriyle
+                              geçerli hale geliyorsa ("Günes" -> "Güneş") sorun büyük
+                              olasılıkla yazımda değil PDF'in metin katmanındadır:
+                              fen5.pdf s.56'da basılı sayfada "Güneş" yazar ama
+                              dekoratif yazı tipi ş'yi s olarak kodlar.
 """
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections import Counter
+from collections.abc import Iterable, Iterator
+from itertools import combinations
 
 from ..models import Bulgu, Paragraf
 from .morfoloji import Morfoloji
@@ -29,6 +38,12 @@ INCELENEN_TURLER = {"govde", "soru", "liste"}
 
 KESIN_GUVEN = 0.9
 BILINMEYEN_GUVEN = 0.5
+KARAKTER_KAYBI_GUVEN = 0.3
+KARAKTER_KAYBI_BAGLAM_GUVEN = 0.2
+
+# Metin katmanında Türkçe harfin yerine geçebilen ASCII harf -> Türkçe harf
+TURKCE_KARSILIK = {"s": "ş", "g": "ğ", "i": "ı", "c": "ç", "o": "ö", "u": "ü"}
+EN_FAZLA_DEGISIKLIK = 3  # "Düsünsene" için 2 değişiklik yeterli; 3 hızı korur
 
 # Sözlükte olmayan ama metinlerde geçen ölçü birimleri ve kısaltmalar
 BIRIMLER = {"km", "cm", "mm", "kg", "mg", "ml", "sn", "dk", "kcal", "cal", "lt", "gr", "ms", "mö"}
@@ -84,8 +99,8 @@ _KUCUK_HARFLE_CUMLE = re.compile(r"(\S*)([.!?])\s+([a-zçğıöşüâîû]\w*)")
 # Kelime: harflerden oluşur, kesme işareti ve kısa çizgiyle bağlanmış parçaları olabilir
 # ("Dünya’nın", "e-içerik"). Rakama veya kesme işaretine bitişik başlayan parçalar
 # ("10’uncu" içindeki "uncu") kelime sayılmaz.
-_KELIME = re.compile(r"(?<![\w'’-])[^\W\d_]+(?:[-'’][^\W\d_]+)*(?![\w'’])")
-_KESME = re.compile(r"['’]")
+_KELIME = re.compile(r"(?<![\w'’´-])[^\W\d_]+(?:[-'’´][^\W\d_]+)*(?![\w'’´])")
+_KESME = re.compile(r"['’´]")  # ´: sosyalbilgiler5.pdf'te "New York´taki"
 
 
 def _sik_yanlis_deseni() -> re.Pattern:
@@ -120,19 +135,53 @@ def _denetlenecek_parcalar(kelime: str) -> list[str]:
     return [p for p in govde.split("-") if len(p) > 2 and p not in BIRIMLER]
 
 
+def turkce_karakterli_bicimler(kelime: str) -> Iterator[str]:
+    """Kelimedeki s, g, i, c, o, u harflerinin Türkçe karşılıklarıyla değiştirildiği biçimler.
+
+    Önce tek harfi değişmiş biçimler, sonra iki, en fazla EN_FAZLA_DEGISIKLIK:
+        "günes" -> "güneş", ...
+    """
+    yerler = [i for i, k in enumerate(kelime) if k in TURKCE_KARSILIK]
+    for adet in range(1, min(len(yerler), EN_FAZLA_DEGISIKLIK) + 1):
+        for secilen in combinations(yerler, adet):
+            harfler = list(kelime)
+            for i in secilen:
+                harfler[i] = TURKCE_KARSILIK[harfler[i]]
+            yield "".join(harfler)
+
+
+def _kelimeler(metin: str) -> list[str]:
+    """Metindeki kelimeler, küçük harfle ve kesme işaretinden sonraki ek atılarak ("Güneş’in" -> "güneş")."""
+    return [_kucuk(_KESME.split(m.group())[0]) for m in _KELIME.finditer(metin)]
+
+
 class YazimAnalizoru:
     def __init__(self, morfoloji: Morfoloji | None = None, sozluk_denetimi: bool = True) -> None:
         """sozluk_denetimi=False ise yalnızca kesin kurallar uygulanır (zeyrek yüklenmez)."""
         if sozluk_denetimi and morfoloji is None:
             morfoloji = Morfoloji()
         self.morfoloji = morfoloji if sozluk_denetimi else None
+        self._turkce_bicim: dict[str, str | None] = {}  # kelime -> geçerli Türkçe karakterli biçimi
+        self._kitap_kelimeleri: Counter[str] = Counter()
 
     def analiz_et(self, paragraflar: Iterable[Paragraf]) -> list[Bulgu]:
+        paragraflar = list(paragraflar)
+        # Kitaptaki kelime sıklıkları: "yasamın" gibi geçerli görünen ama karakter
+        # kaybına uğramış kelimeleri ayırt etmek için kullanılır.
+        self._kitap_kelimeleri = Counter(k for p in paragraflar for k in _kelimeler(p.metin))
         bulgular: list[Bulgu] = []
         for p in paragraflar:
             if p.tur in INCELENEN_TURLER:
                 bulgular.extend(self.paragraf_incele(p))
         return bulgular
+
+    def turkce_bicim(self, kelime: str) -> str | None:
+        """Kelimenin geçerli olan ilk Türkçe karakterli biçimi (yoksa None). Önbelleğe alınır."""
+        if kelime not in self._turkce_bicim:
+            self._turkce_bicim[kelime] = next(
+                (b for b in turkce_karakterli_bicimler(kelime) if self.morfoloji.gecerli_mi(b)), None
+            )
+        return self._turkce_bicim[kelime]
 
     def paragraf_incele(self, p: Paragraf) -> list[Bulgu]:
         metin = _URL.sub(lambda m: " " * len(m.group()), p.metin)  # adresler denetlenmez
@@ -174,16 +223,76 @@ class YazimAnalizoru:
             sonuc.append(bulgu("sik_yanlis", yanlis, f"Sık yapılan bir yazım yanlışı; doğrusu '{dogru}'.",
                                dogru, guven=0.95))
         if self.morfoloji is not None:
-            sik_yanlislar = {_kucuk(b.sorunlu_metin) for b in sonuc if b.tur == "sik_yanlis"}
-            for m in _KELIME.finditer(metin):
-                kelime = m.group()
-                if _kucuk(kelime) in sik_yanlislar:
-                    continue  # zaten sık yanlış olarak raporlandı
-                for parca in _denetlenecek_parcalar(kelime):
-                    if not self.morfoloji.gecerli_mi(parca):
-                        sonuc.append(bulgu(
-                            "bilinmeyen_kelime", kelime,
-                            f"'{parca}' Türkçe kök ve eklere ayrılamadı; yazım hatası olabilir.",
-                            None, guven=BILINMEYEN_GUVEN))
+            sonuc.extend(self._morfolojik_denetim(metin, sonuc, bulgu))
+        return sonuc
+
+    def _morfolojik_denetim(self, metin: str, kesin_bulgular: list[Bulgu], bulgu) -> list[Bulgu]:
+        sonuc: list[Bulgu] = []
+        sik_yanlislar = {_kucuk(b.sorunlu_metin) for b in kesin_bulgular if b.tur == "sik_yanlis"}
+        gecerli_kelimeler: list[str] = []  # paragrafta karakter kaybı varsa üçüncü adımda bakılır
+
+        def karakter_kaybi(kelime, dogru, guven, neden=None):
+            neden = neden or f"'{_kucuk(kelime)}' çözümlenemedi ama '{_kucuk(dogru)}' geçerli bir kelime."
+            return bulgu("karakter_kaybi", kelime,
+                         f"{neden} Yazım hatası değil, olası metin çıkarma sorunu: basılı sayfada doğru "
+                         "yazılmış olabilir; bazı yazı tipleri ş, ğ gibi harfleri metin katmanına s, g "
+                         "olarak aktarır.",
+                         dogru, guven=guven)
+
+        for m in _KELIME.finditer(metin):
+            kelime = m.group()
+            kucuk = _kucuk(kelime)
+            if kucuk in sik_yanlislar:
+                continue  # zaten sık yanlış olarak raporlandı
+
+            # 1) Büyük harfle başlayan kelime: özel isim olabilir, bilinmeyen kelime denetlenmez.
+            #    Ama sıradan kelime olarak çözümlenemiyor, Türkçe karakterli biçimi geçerli ve
+            #    kitapta kendisinden daha sık geçiyorsa ("Günes" 2 kez, "güneş" 115 kez)
+            #    karakter kaybıdır. Sıklık şartı özel isimleri korur: "Sivas" -> "sıvaş" de
+            #    zeyrek'e göre geçerli ama kitapta hiç geçmez.
+            #    Cümle başındaki büyük harf özel isim olduğunu göstermez: cümle başındaki
+            #    kelime özel isim olarak da tanınmıyorsa ("Düsünsene") sıklık şartı aranmaz.
+            if kelime[0].isupper() and kelime[1:].islower():
+                govde = _kucuk(_KESME.split(kelime)[0])
+                if len(govde) > 2 and not self.morfoloji.gecerli_mi(govde):
+                    dogru = self.turkce_bicim(govde)
+                    onceki = metin[: m.start()].rstrip()
+                    cumle_basi = not onceki or onceki.endswith((".", "!", "?", ":"))
+                    kanit = (self._kitap_kelimeleri[dogru] > self._kitap_kelimeleri[govde]
+                             or (cumle_basi and not self.morfoloji.gecerli_mi(govde, ozel_isim=True)))
+                    if dogru and kanit:
+                        sonuc.append(karakter_kaybi(kelime, dogru[0].upper() + dogru[1:], KARAKTER_KAYBI_GUVEN))
+                continue
+
+            # 2) Küçük harfli kelime: çözümlenemeyen parça önce karakter kaybı açısından denenir
+            for parca in _denetlenecek_parcalar(kelime):
+                if self.morfoloji.gecerli_mi(parca):
+                    continue
+                dogru = self.turkce_bicim(parca)
+                if dogru:
+                    sonuc.append(karakter_kaybi(kelime, dogru, KARAKTER_KAYBI_GUVEN))
+                else:
+                    sonuc.append(bulgu(
+                        "bilinmeyen_kelime", kelime,
+                        f"'{parca}' Türkçe kök ve eklere ayrılamadı; yazım hatası olabilir.",
+                        None, guven=BILINMEYEN_GUVEN))
+                break
+            else:
+                if _denetlenecek_parcalar(kelime) == [kucuk]:
+                    gecerli_kelimeler.append(kelime)
+
+        # 3) Paragrafta karakter kaybı bulunduysa aynı yazı tipiyle yazılmış başka kelimeler de
+        #    etkilenmiş olabilir. "yasamın" geçerli bir kelimedir (yasa + m + ın) ama kitapta
+        #    "yaşamın" daha sık geçiyorsa büyük olasılıkla o da karakter kaybına uğramıştır.
+        if any(b.tur == "karakter_kaybi" for b in sonuc):
+            for kelime in gecerli_kelimeler:
+                kucuk = _kucuk(kelime)
+                for bicim in turkce_karakterli_bicimler(kucuk):
+                    if (self._kitap_kelimeleri[bicim] > self._kitap_kelimeleri[kucuk]
+                            and self.morfoloji.gecerli_mi(bicim)):
+                        sonuc.append(karakter_kaybi(
+                            kelime, bicim, KARAKTER_KAYBI_BAGLAM_GUVEN,
+                            neden=f"'{kucuk}' geçerli bir kelime ama kitapta '{bicim}' daha sık geçiyor "
+                                  "ve aynı paragrafta başka karakter kaybı bulundu."))
                         break
         return sonuc

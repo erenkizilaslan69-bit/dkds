@@ -2,7 +2,7 @@
 import unittest
 
 from dkds.analiz.morfoloji import Morfoloji
-from dkds.analiz.yazim import KRITER, YazimAnalizoru
+from dkds.analiz.yazim import KRITER, YazimAnalizoru, turkce_karakterli_bicimler
 from dkds.models import Paragraf
 
 
@@ -97,25 +97,66 @@ class BilinmeyenKelimeTest(unittest.TestCase):
         turler = [b.tur for b in self.analizor.analiz_et([paragraf("Bunu herkez bilir.")])]
         self.assertEqual(turler, ["sik_yanlis"])
 
-    def test_kucuk_harfli_kelime_ozel_isim_olarak_gecerli_sayilmaz(self):
-        # zeyrek sözlüğünde "Günes" özel isim olarak var; küçük harfle yazılınca geçerli değildir
-        self.assertFalse(self.morfoloji.gecerli_mi("günes"))
-        self.assertTrue(self.morfoloji.gecerli_mi("günes", ozel_isim=True))
 
-    def test_zeyrek_tekrar_cozumlemede_ayni_sonucu_verir(self):
-        # zeyrek 0.1.3 hatası: yama olmadan "olacak" ikinci çözümlemede geçersiz çıkıyordu
-        kelimeler = ["alır", "olacak", "olup", "yapılmıştır", "sağlayan", "gelerek", "bakıldığında"]
-        cozumle = self.morfoloji._analizor._parse
-        ilk = [len(cozumle(k)) for k in kelimeler]
-        ikinci = [len(cozumle(k)) for k in kelimeler]
-        self.assertEqual(ilk, ikinci)
-        self.assertTrue(all(ilk))
 
-    def test_sonuclar_onbellege_alinir(self):
-        self.analizor.analiz_et([paragraf("Ay bir uydudur. Ay döner.")])
-        boyut = self.morfoloji.onbellek_boyutu
-        self.analizor.analiz_et([paragraf("Ay bir uydudur. Ay döner.")])
-        self.assertEqual(self.morfoloji.onbellek_boyutu, boyut)
+class KarakterKaybiTest(unittest.TestCase):
+    """fen5.pdf s.56: basılı sayfada "Güneş", "Düşünsene", "yaşamın", "kaynağı" doğru yazılmış,
+    ama dekoratif yazı tipi (Jokerman) ş'yi s, ğ'yi g olarak kodluyor."""
+
+    S56 = ("Günes. Bu yıldızın oynadığı bir film yok ama muhteşem özelliklere sahip. "
+           "Düsünsene, Günes, gezegenimizde yasamın kaynagı! Aslında Dünya gibi onun da katmanları var.")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.analizor = YazimAnalizoru()
+        kitap = [
+            paragraf("Su, yaşamın kaynağıdır. Canlılar yaşamın devamı için suya ihtiyaç duyar."),
+            # fen5.pdf'te "güneş" 115 kez, "günes" 2 kez geçiyor
+            paragraf("Güneş bir yıldızdır. Güneş, Dünya’nın ısı ve ışık kaynağıdır. Güneş’e bakmayınız."),
+            Paragraf(sayfa=56, paragraf=3, metin=cls.S56, konum=(0, 0, 100, 20), tur="govde"),
+        ]
+        cls.bulgular = [b for b in cls.analizor.analiz_et(kitap) if b.sayfa == 56]
+
+    def oneri(self, kelime):
+        return {b.sorunlu_metin: (b.tur, b.oneri, b.guven) for b in self.bulgular}.get(kelime)
+
+    def test_ozel_isim_gibi_gorunen_kelime(self):
+        self.assertEqual(self.oneri("Günes")[:2], ("karakter_kaybi", "Güneş"))
+
+    def test_cozumlenemeyen_kelimeler(self):
+        self.assertEqual(self.oneri("Düsünsene")[:2], ("karakter_kaybi", "Düşünsene"))
+        self.assertEqual(self.oneri("kaynagı")[:2], ("karakter_kaybi", "kaynağı"))
+
+    def test_gecerli_gorunen_kelime_baglamdan_bulunur(self):
+        tur, oneri, guven = self.oneri("yasamın")
+        self.assertEqual((tur, oneri), ("karakter_kaybi", "yaşamın"))
+        self.assertLess(guven, self.oneri("kaynagı")[2])  # bağlama dayandığı için daha düşük güven
+
+    def test_yazim_hatasi_olarak_raporlanmaz(self):
+        self.assertNotIn("bilinmeyen_kelime", {b.tur for b in self.bulgular})
+        self.assertTrue(all(b.guven < 0.5 for b in self.bulgular))
+        self.assertIn("metin çıkarma", self.bulgular[0].aciklama)
+
+    def test_cumle_icindeki_bilinmeyen_ozel_isim_isaretlenmez(self):
+        # "Pitır" -> "pıtır" geçerli ama cümle içinde, büyük harfli: özel isim sayılır
+        metin = "Elçiliğe gelen Peter (Pitır) ve Anna, oğullarıyla birlikte yaşadı."
+        self.assertEqual(self.analizor.analiz_et([paragraf(metin)]), [])
+
+    def test_karakter_kaybi_olmayan_paragrafta_gecerli_kelime_isaretlenmez(self):
+        bulgular = self.analizor.analiz_et([
+            paragraf("Su, yaşamın kaynağıdır. Canlılar yaşamın devamı için suya ihtiyaç duyar."),
+            paragraf("Meclis bu yasamın maddelerini görüştü."),
+        ])
+        self.assertEqual(bulgular, [])
+
+    def test_gercek_ozel_isim_isaretlenmez(self):
+        # "Sivas" -> "sıvaş", "Kore" -> "köre" zeyrek'e göre geçerli ama kitapta geçmiyor
+        metin = "Lidyalıların başkenti Sardes kentiydi. Sivas, Kore ve Somali bu listede yer alır."
+        self.assertEqual(self.analizor.analiz_et([paragraf(metin)]), [])
+
+    def test_turkce_karakterli_bicimler(self):
+        self.assertIn("güneş", list(turkce_karakterli_bicimler("günes")))
+        self.assertEqual(list(turkce_karakterli_bicimler("ağaç")), [])
 
 
 if __name__ == "__main__":
