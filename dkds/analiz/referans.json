@@ -1,0 +1,127 @@
+{
+  "surum": 1,
+  "olcum_surumu": 1,
+  "aciklama": "Sınıf başına paragraf (birim) bazında Ateşman ve Bezirci-Yılmaz puanlarının ortancası, %10 ve %90 dilimleri. Ateşman'da düşük puan, Bezirci-Yılmaz'da yüksek puan zordur. Ara_deger=true olan sınıflar komşu sınıflardan doğrusal ara değerdir. olcum_surumu, referansı üreten okunabilirlik.py ölçümünün sürümüdür; ölçüm değişirse referans yeniden üretilmelidir. Üretim: python -m dkds referans -k SINIF PDF ...",
+  "siniflar": {
+    "3": {
+      "ara_deger": false,
+      "atesman": {
+        "ortanca": 52.637,
+        "p10": 30.353,
+        "p90": 80.484
+      },
+      "bezirci_yilmaz": {
+        "ortanca": 11.905,
+        "p10": 5.964,
+        "p90": 22.258
+      },
+      "birim_sayisi": 156,
+      "kitaplar": [
+        "fen3.pdf"
+      ]
+    },
+    "4": {
+      "ara_deger": true,
+      "atesman": {
+        "ortanca": 51.286,
+        "p10": 30.969,
+        "p90": 74.344
+      },
+      "bezirci_yilmaz": {
+        "ortanca": 13.313,
+        "p10": 7.045,
+        "p90": 22.607
+      },
+      "kaynak_siniflar": [
+        3,
+        5
+      ]
+    },
+    "5": {
+      "ara_deger": false,
+      "atesman": {
+        "ortanca": 49.935,
+        "p10": 31.585,
+        "p90": 68.204
+      },
+      "bezirci_yilmaz": {
+        "ortanca": 14.72,
+        "p10": 8.127,
+        "p90": 22.956
+      },
+      "birim_sayisi": 403,
+      "kitaplar": [
+        "fen5.pdf",
+        "sosyalbilgiler5.pdf"
+      ]
+    },
+    "6": {
+      "ara_deger": true,
+      "atesman": {
+        "ortanca": 47.602,
+        "p10": 29.366,
+        "p90": 65.409
+      },
+      "bezirci_yilmaz": {
+        "ortanca": 15.335,
+        "p10": 8.726,
+        "p90": 23.738
+      },
+      "kaynak_siniflar": [
+        5,
+        7
+      ]
+    },
+    "7": {
+      "ara_deger": false,
+      "atesman": {
+        "ortanca": 45.269,
+        "p10": 27.147,
+        "p90": 62.614
+      },
+      "bezirci_yilmaz": {
+        "ortanca": 15.95,
+        "p10": 9.326,
+        "p90": 24.519
+      },
+      "birim_sayisi": 216,
+      "kitaplar": [
+        "fen7.pdf"
+      ]
+    },
+    "8": {
+      "ara_deger": true,
+      "atesman": {
+        "ortanca": 44.515,
+        "p10": 25.804,
+        "p90": 62.495
+      },
+      "bezirci_yilmaz": {
+        "ortanca": 17.422,
+        "p10": 9.898,
+        "p90": 27.348
+      },
+      "kaynak_siniflar": [
+        7,
+        9
+      ]
+    },
+    "9": {
+      "ara_deger": false,
+      "atesman": {
+        "ortanca": 43.762,
+        "p10": 24.461,
+        "p90": 62.375
+      },
+      "bezirci_yilmaz": {
+        "ortanca": 18.893,
+        "p10": 10.47,
+        "p90": 30.177
+      },
+      "birim_sayisi": 362,
+      "kitaplar": [
+        "biyoloji9.pdf"
+      ]
+    }
+  }
+}
