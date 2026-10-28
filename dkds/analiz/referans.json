@@ -1,21 +1,21 @@
 {
   "surum": 1,
-  "olcum_surumu": 1,
+  "olcum_surumu": 2,
   "aciklama": "Sınıf başına paragraf (birim) bazında Ateşman ve Bezirci-Yılmaz puanlarının ortancası, %10 ve %90 dilimleri. Ateşman'da düşük puan, Bezirci-Yılmaz'da yüksek puan zordur. Ara_deger=true olan sınıflar komşu sınıflardan doğrusal ara değerdir. olcum_surumu, referansı üreten okunabilirlik.py ölçümünün sürümüdür; ölçüm değişirse referans yeniden üretilmelidir. Üretim: python -m dkds referans -k SINIF PDF ...",
   "siniflar": {
     "3": {
       "ara_deger": false,
       "atesman": {
-        "ortanca": 52.637,
-        "p10": 30.353,
-        "p90": 80.484
+        "ortanca": 52.541,
+        "p10": 29.511,
+        "p90": 80.792
       },
       "bezirci_yilmaz": {
-        "ortanca": 11.905,
-        "p10": 5.964,
-        "p90": 22.258
+        "ortanca": 11.844,
+        "p10": 5.934,
+        "p90": 22.31
       },
-      "birim_sayisi": 156,
+      "birim_sayisi": 155,
       "kitaplar": [
         "fen3.pdf"
       ]
@@ -23,14 +23,14 @@
     "4": {
       "ara_deger": true,
       "atesman": {
-        "ortanca": 51.286,
-        "p10": 30.969,
-        "p90": 74.344
+        "ortanca": 51.238,
+        "p10": 30.606,
+        "p90": 74.531
       },
       "bezirci_yilmaz": {
-        "ortanca": 13.313,
-        "p10": 7.045,
-        "p90": 22.607
+        "ortanca": 13.223,
+        "p10": 7.106,
+        "p90": 22.652
       },
       "kaynak_siniflar": [
         3,
@@ -41,15 +41,15 @@
       "ara_deger": false,
       "atesman": {
         "ortanca": 49.935,
-        "p10": 31.585,
-        "p90": 68.204
+        "p10": 31.7,
+        "p90": 68.27
       },
       "bezirci_yilmaz": {
-        "ortanca": 14.72,
-        "p10": 8.127,
-        "p90": 22.956
+        "ortanca": 14.602,
+        "p10": 8.279,
+        "p90": 22.994
       },
-      "birim_sayisi": 403,
+      "birim_sayisi": 401,
       "kitaplar": [
         "fen5.pdf",
         "sosyalbilgiler5.pdf"
@@ -59,13 +59,13 @@
       "ara_deger": true,
       "atesman": {
         "ortanca": 47.602,
-        "p10": 29.366,
-        "p90": 65.409
+        "p10": 29.424,
+        "p90": 65.442
       },
       "bezirci_yilmaz": {
-        "ortanca": 15.335,
-        "p10": 8.726,
-        "p90": 23.738
+        "ortanca": 15.276,
+        "p10": 8.802,
+        "p90": 23.756
       },
       "kaynak_siniflar": [
         5,
