@@ -105,6 +105,7 @@ def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
     from .analiz.okunabilirlik import sayi_yaz
 
     etiketler = {"cumle_isaretsiz": "cümle sonu işareti olmayan paragraf", "sozluk": "sözlükçe paragrafı",
+                 "form": "form/künye paragrafı",
                  "kisa_sayfa": "sayfada 40 kelimelik gövde metni olmayan paragraf"}
     print(f"\nOkunabilirlik özeti ({ozet['sinif']}. sınıf kitabı):")
     print(f"  Değerlendirilen : {ozet['birim_sayisi']} metin birimi, {ozet['kelime']} kelime, {ozet['cumle']} cümle")

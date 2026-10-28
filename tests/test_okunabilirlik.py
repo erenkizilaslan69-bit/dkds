@@ -231,6 +231,19 @@ class AtlamaNedeniTest(unittest.TestCase):
                  "âlim: İlim sahibi kişi. astronomi: Gök cisimlerini inceleyen bilim. ataş: Kâğıtları tutturan araç.")
         self.assertEqual(atlama_nedeni(metin), "sozluk")
 
+    def test_form_kunyesi(self):
+        # sosyalbilgiler5.pdf s.56 ve fen3.pdf s.32 (biyoloji9.pdf s.89'daki rapor başlığı noktasız
+        # olduğu için zaten "cumle_isaretsiz" ile eleniyor)
+        for metin in ("ETKİNLİK Adı : Yaşadığım İlin Göreceli Konumu Amacı : Konumunu açıklayabilme Beceri : "
+                      "Mekânsal düşünme Süre : 2 ders saati Malzemeler: Karton, kalem.",
+                      "Süre : İki ders saati Konu : Yaşam döngüsü Görev : Bir bitki veya hayvanın yaşam döngüsünü anlatınız."):
+            self.assertEqual(atlama_nedeni(metin), "form", metin)
+        self.assertIsNotNone(atlama_nedeni("Kurum : Kimlik No : Hasta Adı : Cinsiyeti : Doğum Tarihi :"))
+
+    def test_az_alanli_veya_diyalog_form_degil(self):
+        self.assertIsNone(atlama_nedeni("Gerekli malzeme : kalem. Süre : 2 saat. Çalışmaya başlayınız."))  # 2 alan
+        self.assertIsNone(atlama_nedeni("Sena: Önce kaynakları belirleyelim. Samet: Haklısın. Sena: Başlayalım."))
+
     def test_iki_nokta_ust_uste_olan_normal_cumle_sozluk_degil(self):
         self.assertIsNone(atlama_nedeni("Gerekli malzemeler: kalem, silgi ve defter. Sonra çalışmaya başlayın."))
 

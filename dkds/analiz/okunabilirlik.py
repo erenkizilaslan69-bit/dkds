@@ -247,7 +247,7 @@ INCELENEN_TURLER = {"govde"}
 # Ölçümü değiştiren her düzenlemede (cümle ayırma, hece/kelime sayımı, birim oluşturma,
 # atlama kuralları, formüller) artırılır. referans.json bu sürümle üretilir; sürüm
 # uyuşmazsa referans yeniden üretilmelidir: python -m dkds referans (bkz. README).
-OLCUM_SURUMU = 1
+OLCUM_SURUMU = 2  # 2: form/künye paragrafları atlanıyor
 
 # Bundan az kelimeli gövde paragrafları aynı sayfadaki komşu gövde paragraflarıyla
 # birleştirilerek değerlendirilir; çok kısa metinde formüller güvenilir sonuç vermez.
@@ -340,12 +340,22 @@ _SOZLUK_MADDESI = re.compile(
 SOZLUK_EN_AZ_MADDE = 3
 
 
+# Form / etkinlik künyesi: "Adı : Rol Kartları Amacı : … Beceri : … Süre : 2 ders saati". Alan adından
+# sonra boşluklu ":" gelir (sütun hizası); düzyazıda boşluktan önce ":" yazılmaz. En az 3 alan varsa
+# paragraf düzyazı değil formdur (sosyalbilgiler5 etkinlik künyeleri, fen3 "Süre : Konu : Görev :",
+# biyoloji9 rapor başlığı).
+_FORM_ALANI = re.compile(r"[^\W\d_]+ : ")
+FORM_EN_AZ_ALAN = 3
+
+
 def atlama_nedeni(metin: str) -> str | None:
     """Paragraf okunabilirlik ölçümüne uygun değilse nedeni, uygunsa None."""
     if not _CUMLE_SONU_ISARETI.search(metin) and len(kelimeleri_bul(metin)) >= ISARETSIZ_EN_AZ_KELIME:
         return "cumle_isaretsiz"
     if len(_SOZLUK_MADDESI.findall(metin)) >= SOZLUK_EN_AZ_MADDE:
         return "sozluk"
+    if len(_FORM_ALANI.findall(metin)) >= FORM_EN_AZ_ALAN:
+        return "form"
     return None
 
 
