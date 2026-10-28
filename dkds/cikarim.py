@@ -5,6 +5,7 @@ temizleme.py içindedir.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 try:
@@ -15,7 +16,7 @@ except ImportError:  # eski sürümler yalnızca "fitz" adıyla gelir
 from .duzen import bolunmus_paragraflari_birlestir, ust_alt_bilgi_temizle
 from .models import Blok, CikarimSonucu, Paragraf
 from .siniflandirma import sayfa_turleri
-from .temizleme import dolgu_mu, harf_iceriyor_mu, kodlama_bozuk_mu, temizle
+from .temizleme import dolgu_mu, harf_iceriyor_mu, kodlama_bozuk_mu, kodlamayi_onar, temizle
 
 # Bir sayfada bundan az karakter varsa ve görsel içeriyorsa "taranmış" kabul edilir.
 TARANMIS_ESIK = 30
@@ -43,12 +44,40 @@ def _sayfa_bloklari(sayfa, sayfa_no: int, ocr: bool, dil: str, uyarilar: list[st
             return [], False
 
     ham = sayfa.get_text("blocks", flags=METIN_BAYRAKLARI, sort=True, textpage=textpage)
-    bloklar = [
+    bloklar = _bloklara_cevir(ham, sayfa_no)
+    if textpage is None:  # OCR çıktısı zaten Unicode, onarım gerekmez
+        bloklar = _kodlamayi_onar(sayfa, sayfa_no, bloklar, uyarilar)
+    return bloklar, ocr_kullanildi
+
+
+def _bloklara_cevir(ham, sayfa_no: int) -> list[Blok]:
+    return [
         Blok(sayfa=sayfa_no, x0=x0, y0=y0, x1=x1, y1=y1, metin=metin)
         for x0, y0, x1, y1, metin, _no, tip in ham
         if tip == 0 and metin.strip()  # tip 0 = metin, 1 = görsel
     ]
-    return bloklar, ocr_kullanildi
+
+
+def _kodlamayi_onar(sayfa, sayfa_no: int, bloklar: list[Blok], uyarilar: list[str]) -> list[Blok]:
+    """Sayfada "�" varsa eski Türkçe yazı tipi eşlemesiyle onarmayı dener.
+
+    "�", PDF'teki yazı tipi kodunun Unicode karşılığı olmadığı anlamına gelir ve
+    bilgi kaybıdır. TEXT_CID_FOR_UNKNOWN_UNICODE bayrağı bu karakterler yerine kod
+    numarasına göre karakter verir; temizleme.kodlamayi_onar eşlemeyi uygular. Onarım
+    kabul edilmezse sayfa olduğu gibi (bozuk) kalır ve aşağıda uyarı verilir.
+    """
+    if not any("�" in b.metin for b in bloklar):
+        return bloklar
+    ham = sayfa.get_text("blocks", flags=METIN_BAYRAKLARI | fitz.TEXT_CID_FOR_UNKNOWN_UNICODE, sort=True)
+    kodlu = _bloklara_cevir(ham, sayfa_no)
+    onarilmis = kodlamayi_onar([b.metin for b in kodlu])
+    if onarilmis is None:
+        return bloklar
+    uyarilar.append(
+        f"Sayfa {sayfa_no}: bozuk yazı tipi kodlaması eski Türkçe yazı tipi eşlemesiyle onarıldı; "
+        "metin basılı sayfayla karşılaştırılmalı."
+    )
+    return [replace(b, metin=m) for b, m in zip(kodlu, onarilmis)]
 
 
 def pdf_oku(yol: str | Path, ocr: bool = True, dil: str = "tur") -> CikarimSonucu:

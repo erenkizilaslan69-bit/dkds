@@ -81,3 +81,67 @@ def kodlama_bozuk_mu(metin: str, esik: float = 0.90) -> bool:
         return False
     beklenen = sum(1 for k in harfler if _BEKLENEN.match(k))
     return beklenen / len(harfler) < esik
+
+
+# Bazı eski PDF'lerde Türkçe harfler Unicode'a eşlenmemiş yazı tipi kodlarıyla saklanır.
+# PyMuPDF bu karakterleri kod numaralarına göre verince aşağıdaki Latin-1 karakterler çıkar.
+# Eşleme fen5.pdf s.5-6 ve sosyalbilgiler5.pdf s.3-4'te (İstiklal Marşı, Gençliğe Hitabe)
+# basılı sayfayla karşılaştırılarak doğrulanmıştır.
+ESKI_TURKCE_ESLEME = {"ú": "ş", "Õ": "ı", "÷": "ğ", "ø": "İ", "ù": "Ş"}
+
+# Onarılmış sayfa ancak karakterlerin en az bu oranı beklenen karakterlerse kabul edilir
+# (kodlama_bozuk_mu'nun varsayılan eşiğinden sıkı: birkaç anlamsız karakter kalmamalı).
+ONARIM_ESIGI = 0.98
+# Sayfada eşlemedeki karakterlerden en az bu kadar bulunmalı ("desen var" sayılması için)
+ONARIM_EN_AZ_KARAKTER = 5
+
+_KOD = "".join(ESKI_TURKCE_ESLEME)
+# Eşlemedeki karakter, yanında harf ya da başka bir eşleme karakteri varsa çevrilir
+# ("topra÷Õ" -> "toprağı": ikinci karakterin yanında yalnızca ilk eşleme karakteri vardır).
+# Harfe bitişik tireden sonraki karakter de çevrilir ("ruh-Õ" -> "ruh-ı", tamlama eki).
+_ESLEME_KARAKTERI = re.compile(
+    rf"(?:(?<=[^\W\d_])|(?<=[{_KOD}])|(?<=[^\W\d_]-))[{_KOD}]|[{_KOD}](?=[^\W\d_]|[{_KOD}])"
+)
+_KELIME = re.compile(r"[^\W\d_]+")
+
+
+def _buyuk_harfli_kelimede_ogu(kelime: re.Match) -> str:
+    """Tamamen büyük harfli bir kelimenin içindeki küçük "ö" aslında "Ğ"dir.
+
+    Bu yazı tiplerinde büyük Ğ glifi "ö" koduyla saklanır ("GENÇLİöE" -> "GENÇLİĞE").
+    Küçük ö'nün büyük harfli kelimede doğal bir karşılığı yoktur ("Ö" yazılırdı);
+    karışık harfli kelimelerdeki ö ("sönmez") gerçek ö'dür ve değişmez.
+    """
+    metin = kelime.group()
+    digerleri = [k for k in metin if k != "ö"]
+    if "ö" in metin and len(digerleri) >= 2 and all(k.isupper() for k in digerleri):
+        return metin.replace("ö", "Ğ")
+    return metin
+
+
+def eski_turkce_kodlamayi_cevir(metin: str) -> str:
+    """Eski Türkçe yazı tipi eşlemesini uygular.
+
+    Eşlemedeki karakterler yalnızca bir harfe bitişikse çevrilir; böylece matematikte
+    bölme işareti olan "12 ÷ 3" gibi ifadeler bozulmaz.
+    """
+    metin = _ESLEME_KARAKTERI.sub(lambda m: ESKI_TURKCE_ESLEME[m.group()], metin)
+    return _KELIME.sub(_buyuk_harfli_kelimede_ogu, metin)
+
+
+def kodlamayi_onar(metinler: list[str]) -> list[str] | None:
+    """Bozuk işaretlenen bir sayfanın metinlerini eski Türkçe eşlemesiyle onarmayı dener.
+
+    Sayfanın bozuk olduğunu çağıran bilir (ör. çıkarımda "�" görülmüştür); metinler
+    "�" yerine kod numarasına göre karakter verilerek çıkarılmış olmalıdır. Onarım:
+      1. Sayfada eşlemedeki karakterlerden yeterince yoksa desen yok: None.
+      2. Eşleme uygulanır ve sayfa yeniden kontrol edilir; hâlâ bozuksa None.
+    None dönerse sayfa olduğu gibi (bozuk) bırakılmalıdır.
+    """
+    birlesik = " ".join(metinler)
+    if len(_ESLEME_KARAKTERI.findall(birlesik)) < ONARIM_EN_AZ_KARAKTER:
+        return None
+    onarilmis = [eski_turkce_kodlamayi_cevir(m) for m in metinler]
+    if kodlama_bozuk_mu(" ".join(onarilmis), esik=ONARIM_ESIGI):
+        return None
+    return onarilmis
