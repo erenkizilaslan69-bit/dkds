@@ -3,17 +3,21 @@ import math
 import unittest
 
 from dkds.analiz.okunabilirlik import (
+    OkunabilirlikAnalizoru,
+    atlama_nedeni,
     atesman_duzeyi,
     atesman_kademesi,
     atesman_puani,
     bezirci_yilmaz_duzeyi,
     bezirci_yilmaz_puani,
+    bolme_noktasi,
     cumlelere_ayir,
     hece_say,
     kelimeleri_bul,
     metin_metrikleri,
     sinif_kademesi,
 )
+from dkds.models import Paragraf
 
 
 class HeceVeKelimeTest(unittest.TestCase):
@@ -51,7 +55,20 @@ class CumleAyirmaTest(unittest.TestCase):
         self.assertEqual(len(cumlelere_ayir("Sıcaklık 3,5 derece arttı. Yaklaşık 9.500 yıl önce kuruldu.")), 2)
 
     def test_kucuk_harfle_devam_eden_metin_bolunmez(self):
-        self.assertEqual(len(cumlelere_ayir("Hangi özelliği ile ilgilidir? b. Ay’ın hareketleri nelerdir?")), 1)
+        self.assertEqual(len(cumlelere_ayir("Kalem, silgi vb. araçlar ve s. 36 incelenmelidir.")), 1)
+
+    def test_sik_isaretleri_cumleye_dahil_edilmez(self):
+        # fen5.pdf s.51: şık listesi "ç. Hem… d. Kendi… e. Güneş’in…" tek cümle sayılmamalı
+        sonuc = cumlelere_ayir("ç. Hem dönme hem de dolanma hareketi yapar. d. Kendi etrafında döner. e. Güneş’in yönüdür.")
+        self.assertEqual(sonuc, ["Hem dönme hem de dolanma hareketi yapar.", "Kendi etrafında döner.",
+                                 "Güneş’in yönüdür."])
+        self.assertEqual(cumlelere_ayir("Hangi özelliği ile ilgilidir? b. Ay’ın hareketleri nelerdir?"),
+                         ["Hangi özelliği ile ilgilidir?", "Ay’ın hareketleri nelerdir?"])
+        self.assertEqual(len(kelimeleri_bul(" ".join(cumlelere_ayir("A) Kültür kolaydır. B) Bilim zordur."))
+                                                    )), 4)
+
+    def test_buyuk_harfli_ad_basharfi_madde_isareti_degildir(self):
+        self.assertEqual(len(cumlelere_ayir("Şahin, H. Konyar, E. ve Ergin, G. yazdı.")), 1)
 
     def test_cumle_sonunda_kapanis_tirnagi(self):
         self.assertEqual(cumlelere_ayir("“Bu bir deneydir.” Sonuçları yazınız."),
@@ -160,6 +177,204 @@ class DuzeyTest(unittest.TestCase):
         self.assertEqual(bezirci_yilmaz_duzeyi(9.4), "9-10. sınıf")
         self.assertEqual(bezirci_yilmaz_duzeyi(13.7), "lisans")
         self.assertEqual(bezirci_yilmaz_duzeyi(16.23), "akademik")
+
+
+def paragraf(metin, sayfa=1, no=1, tur="govde"):
+    return Paragraf(sayfa=sayfa, paragraf=no, metin=metin, konum=(50.0, 100.0 * no, 500.0, 100.0 * no + 40), tur=tur)
+
+
+# Metinler 40 kelimelik alt sınırı geçecek uzunlukta; değerler elle doğrulandı.
+# Kolay: 42 kelime, 15 cümle, 81 hece -> Ateşman 114,04 (4. sınıf ve altı)
+KOLAY = ("Ali topu attı. Ayşe topu tuttu. Ali koştu. Ayşe güldü. Top suya düştü. Hep birlikte eve gittik. "
+         "Hava çok güzel. Kuş öttü. Biz okula gittik. Dersler başladı. Ali çok sevindi. Ayşe de sevindi. "
+         "Gün güzel geçti. Akşam eve döndük. Hava çok güzeldi.")
+# Zor: tek uzun cümle, 44 kelime, 182 hece -> Ateşman -82,19 (lisans üstü)
+#   198,825 - 40,175 × (182/44) - 2,610 × 44 = 198,825 - 166,18 - 114,84
+ZOR = ("Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışların sürekliliğini "
+       "sağlayabilmek amacıyla öğrencilerimizin ailelerinin eğitim süreçlerine katılımlarını "
+       "değerlendirebilecek göstergeleri belirlemeleri, bu doğrultuda okul yönetimlerinin velilerle "
+       "düzenli görüşmeler gerçekleştirmesi, ayrıca öğrencilerin evde yaptıkları çalışmaların düzenli "
+       "kontrol edilmesi ve sınıf öğretmenlerinin bu sürecin her aşamasında aktif rol almaları "
+       "gerekmektedir.")
+# Sınırdaki iki metin (5. sınıf kitabı = 5-6. sınıf düzeyi): A 1 kademe, B 2 kademe üstünde
+ORTA_A = ("Ay, Dünya’nın tek doğal uydusudur ve onun etrafında dolanır. "
+          "Güneş, kendi etrafında dönen büyük bir yıldızdır. "
+          "Gezegenler, Güneş’in çevresinde dolanarak hareket eder. ") * 2  # Ateşman 75,6 (7-8. sınıf)
+ORTA_B = ("Ay, Dünya’nın etrafında dolanan doğal bir uydudur. "
+          "Güneş, gezegenlerimize ışık ve ısı veren büyük bir yıldızdır. "
+          "Gezegenler, Güneş’in çevresinde belirli yörüngelerde hareket eder. ") * 2  # Ateşman 68,8 (9-10. sınıf)
+
+
+class AtlamaNedeniTest(unittest.TestCase):
+    def test_cumle_isaretsiz_paragraf(self):
+        # fen5.pdf s.58 kavram listesi, haber başlığı, tablo hücresi
+        self.assertEqual(atlama_nedeni("kuvvet kuvvet birimi dinamometre kütle ağırlık sürtünme"), "cumle_isaretsiz")
+        self.assertEqual(atlama_nedeni("Valizlerin altına tekerlek takılması"), "cumle_isaretsiz")
+
+    def test_cumle_isaretli_paragraf_uygun(self):
+        self.assertIsNone(atlama_nedeni(KOLAY))
+        self.assertIsNone(atlama_nedeni("Su kaynayınca buhar olur."))
+
+    def test_sozluk(self):
+        # fen5.pdf s.144
+        metin = ("A-B-C-Ç abeslang: Hekimlerin boğazı görebilmek için dili bastırdıkları araç; dilbasar. "
+                 "âlim: İlim sahibi kişi. astronomi: Gök cisimlerini inceleyen bilim. ataş: Kâğıtları tutturan araç.")
+        self.assertEqual(atlama_nedeni(metin), "sozluk")
+
+    def test_iki_nokta_ust_uste_olan_normal_cumle_sozluk_degil(self):
+        self.assertIsNone(atlama_nedeni("Gerekli malzemeler: kalem, silgi ve defter. Sonra çalışmaya başlayın."))
+
+
+class BirimlerTest(unittest.TestCase):
+    def setUp(self):
+        self.analizor = OkunabilirlikAnalizoru(sinif=5)
+
+    def birimler(self, paragraflar):
+        return self.analizor.birimleri_olustur(paragraflar)
+
+    def test_yalnizca_govde_degerlendirilir(self):
+        birimler, _ = self.birimler([paragraf(KOLAY, no=1, tur="soru"), paragraf(KOLAY, no=2, tur="liste"),
+                                     paragraf(KOLAY, no=3, tur="etiket"), paragraf(KOLAY, no=4, tur="baslik")])
+        self.assertEqual(birimler, [])
+
+    def test_uzun_paragraf_tek_birim(self):
+        birimler, atlanan = self.birimler([paragraf(ZOR, no=1), paragraf(KOLAY, no=2)])
+        self.assertEqual([b.paragraflar for b in birimler], [[1], [2]])
+        self.assertEqual(sum(atlanan.values()), 0)
+
+    def test_kisa_paragraflar_komsularla_birlestirilir(self):
+        kisa = "Ali topu attı. Ayşe topu tuttu."  # 6 kelime
+        birimler, _ = self.birimler([paragraf(kisa, no=n) for n in range(1, 9)])  # 48 kelime
+        # ilk 7 paragraf 42 kelime, sonuncu kalan parça öncekine eklenir
+        self.assertEqual([b.paragraflar for b in birimler], [[1, 2, 3, 4, 5, 6, 7, 8]])
+        self.assertEqual(birimler[0].metrikler.kelime, 48)
+        self.assertEqual(birimler[0].konum, (50.0, 100.0, 500.0, 840.0))  # paragraf konumlarının birleşimi
+
+    def test_sayfada_yeterli_metin_yoksa_atlanir(self):
+        birimler, atlanan = self.birimler([paragraf("Ali topu attı.", no=1), paragraf("Ayşe güldü.", no=2)])
+        self.assertEqual((birimler, dict(atlanan)), ([], {"kisa_sayfa": 2}))
+
+    def test_birlestirme_sayfa_sinirini_asmaz(self):
+        kisa = "Ali topu attı. Ayşe topu tuttu."
+        birimler, _ = self.birimler([paragraf(kisa, sayfa=1, no=1), paragraf(ZOR, sayfa=2, no=1)])
+        self.assertEqual([(b.sayfa, b.paragraflar) for b in birimler], [(2, [1])])
+
+    def test_isaretsiz_paragraf_birlesmeden_atlanir(self):
+        # başlık gibi noktasız parça komşuyla birleşip dev cümle oluşturmamalı
+        baslik = "Diyarbakır’da Kral Yolu rotaları tanıtıldı"
+        birimler, atlanan = self.birimler([paragraf(baslik, no=1), paragraf(KOLAY, no=2)])
+        self.assertEqual([b.paragraflar for b in birimler], [[2]])
+        self.assertEqual(dict(atlanan), {"cumle_isaretsiz": 1})
+        self.assertEqual(birimler[0].metrikler.cumle, 15)  # başlık cümle sayısına katılmadı
+
+    def test_gecersiz_sinif(self):
+        with self.assertRaises(ValueError):
+            OkunabilirlikAnalizoru(sinif=0)
+
+
+class AnalizTest(unittest.TestCase):
+    def sonuc(self, paragraflar, sinif=5):
+        return OkunabilirlikAnalizoru(sinif=sinif).incele(paragraflar)
+
+    def test_kolay_metin_bulgu_uretmez_zor_metin_uretir(self):
+        s = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)])
+        self.assertEqual([(b.paragraf, b.kriter, b.tur) for b in s.bulgular], [(2, "okunabilirlik", "sinif_ustu")])
+
+    def test_bulgu_alanlari(self):
+        b = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).bulgular[0]
+        self.assertEqual((b.sayfa, b.konum), (1, (50.0, 200.0, 500.0, 240.0)))
+        # metin 240 karakteri aştığı için ilk 40 kelime + "…" gösterilir
+        self.assertTrue(b.sorunlu_metin.endswith(" …"))
+        self.assertTrue(ZOR.startswith(b.sorunlu_metin[:-2]))
+        self.assertEqual(b.guven, 0.7)  # Ateşman kademesi 5 kademe üstünde: üst sınır
+        # açıklamada puan, düzey, cümle uzunluğu, kitap ortalaması ve en uzun kelimeler bulunur
+        for parca in ("Ateşman okunabilirlik puanı -82,2", "lisans üstü düzeyine", "5. sınıf kitabının düzeyinin "
+                      "(5-6. sınıf) 5 kademe üstünde", "Bezirci-Yılmaz puanı 122,7 (akademik)",
+                      "Ortalama cümle uzunluğu 44,0 kelime (kitap ortalaması 5,4), kelime başına 4,14 hece"):
+            self.assertIn(parca, b.aciklama)
+        self.assertIn("En uzun cümle 44 kelime", b.oneri)
+
+    def test_en_uzun_kelimeler_hece_sirasiyla(self):
+        b = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).bulgular[0]
+        self.assertIn("En uzun kelimeler: değerlendirebilecek (8 hece), öğrencilerimizin (7 hece), "
+                      "gerçekleştirmesi (6 hece), öğretmenlerinin (6 hece).", b.aciklama)
+
+    def test_oneri_cumleyi_virgulden_boler(self):
+        b = self.sonuc([paragraf(ZOR)]).bulgular[0]
+        self.assertIn("«… okul yönetimlerinin velilerle düzenli görüşmeler gerçekleştirmesi.»", b.oneri)
+        self.assertIn("«Ayrıca öğrencilerin evde yaptıkları çalışmaların düzenli …»", b.oneri)
+
+    def test_kademe_farki_siniri(self):
+        # 5. sınıf kitabı 5-6. sınıf düzeyindedir (kademe 1): 1 kademe üstü bulgu değil, 2 kademe üstü bulgu
+        self.assertEqual(self.sonuc([paragraf(ORTA_A)], sinif=5).bulgular, [])
+        b = self.sonuc([paragraf(ORTA_B)], sinif=5).bulgular
+        self.assertEqual(len(b), 1)
+        self.assertIn("9-10. sınıf düzeyine denk geliyor", b[0].aciklama)
+        self.assertIn("2 kademe üstünde", b[0].aciklama)
+        self.assertEqual(b[0].guven, 0.4)  # 2 kademe: en düşük güven
+
+    def test_sinif_arttikca_esik_kayar(self):
+        # aynı ORTA_B metni 7. sınıf kitabında (7-8. sınıf düzeyi) yalnızca 1 kademe üstündedir
+        self.assertEqual(self.sonuc([paragraf(ORTA_B)], sinif=7).bulgular, [])
+        self.assertEqual(len(self.sonuc([paragraf(ZOR)], sinif=12).bulgular), 1)  # lisans üstü: 2 kademe üstü
+
+    def test_ozet(self):
+        ozet = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).ozet
+        self.assertEqual((ozet["sinif"], ozet["birim_sayisi"], ozet["kelime"], ozet["cumle"]), (5, 2, 86, 16))
+        # toplam: 86 kelime, 16 cümle -> kelime/cümle = 5,375
+        self.assertAlmostEqual(ozet["ortalama_cumle_uzunlugu"], 86 / 16)
+        self.assertIn("puan", ozet["atesman"])
+        self.assertIn("duzey", ozet["bezirci_yilmaz"])
+        # en zor paragraf listesi Ateşman puanı düşükten yükseğe sıralıdır
+        en_zor = ozet["en_zor_paragraflar"]
+        self.assertEqual([p["paragraflar"] for p in en_zor], [[2], [1]])
+        self.assertLess(en_zor[0]["atesman"], en_zor[1]["atesman"])
+
+    def test_ozet_en_zor_paragraf_sayisi_sinirlidir(self):
+        paragraflar = [paragraf(ZOR + f" Ek{n}.", no=n) for n in range(1, 16)]
+        ozet = self.sonuc(paragraflar).ozet
+        self.assertEqual(len(ozet["en_zor_paragraflar"]), 10)
+
+    def test_bos_girdi(self):
+        s = self.sonuc([])
+        self.assertEqual((s.bulgular, s.ozet["birim_sayisi"]), ([], 0))
+        self.assertNotIn("atesman", s.ozet)
+
+    def test_birlestirilen_paragraflar_aciklamada_belirtilir(self):
+        zor_kisa = "Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışların sürekliliği."  # 7 kelime
+        s = self.sonuc([paragraf(zor_kisa, no=n) for n in range(1, 8)])  # 6. paragrafta 42 kelimeye ulaşılır
+        self.assertEqual(len(s.bulgular), 1)
+        self.assertIn("7 kısa gövde paragrafı birleştirilerek", s.bulgular[0].aciklama)  # 7. kalan parça eklenir
+        self.assertIn("paragraf 1–7", s.bulgular[0].aciklama)
+
+
+class BolmeNoktasiTest(unittest.TestCase):
+    def test_virgulden_bolunur(self):
+        cumle = ("Güneş sisteminin merkezindeki yıldız çok büyük bir enerji yayar, bu enerji sayesinde "
+                 "gezegenler aydınlanır ve ısınır.")
+        ilk, ikinci = bolme_noktasi(cumle)
+        self.assertTrue(ilk.endswith("yayar."))
+        self.assertTrue(ikinci.startswith("Bu enerji"))
+
+    def test_baglactan_once_bolunur(self):
+        cumle = "Öğrenciler deneyi dikkatle ve eksiksiz tamamladılar ancak sonuçları defterlerine yazmayı unuttular."
+        ilk, ikinci = bolme_noktasi(cumle)
+        self.assertEqual((ilk, ikinci), ("Öğrenciler deneyi dikkatle ve eksiksiz tamamladılar.",
+                                         "Ancak sonuçları defterlerine yazmayı unuttular."))
+        # ilk parçası 4 kelime olan cümle bölünmez (iki parça da en az 5 kelime olmalı)
+        self.assertIsNone(bolme_noktasi("Öğrenciler deneyi dikkatle tamamladılar ancak sonuçları defterlerine yazmayı unuttular."))
+
+    def test_turkce_buyuk_harf(self):
+        ilk, ikinci = bolme_noktasi("Bu deney çok uzun sürdü, ışık kaynağı çok zayıf olduğu için sonuç alınamadı.")
+        self.assertTrue(ikinci.startswith("Işık"))
+        ilk, ikinci = bolme_noktasi("Bu deney çok uzun sürdü, iyi bir sonuç alınmasını bekliyorduk ama olmadı.")
+        self.assertTrue(ikinci.startswith("İyi"))
+
+    def test_kisa_parca_birakan_yer_secilmez(self):
+        self.assertIsNone(bolme_noktasi("Evet, bunu yapabiliriz ama çok zor, sanırım olmaz."))
+
+    def test_aday_yoksa_none(self):
+        self.assertIsNone(bolme_noktasi("Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışlar."))
 
 
 if __name__ == "__main__":

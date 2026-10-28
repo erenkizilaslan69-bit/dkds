@@ -1,7 +1,9 @@
 """Komut satırı.
 
     python -m dkds <pdf> [-o cikti.json] [--ocr-kapali]      metin çıkarma
-    python -m dkds analiz <pdf> [-o bulgular.json]           yazım analizi
+    python -m dkds analiz <pdf> [--sinif 5] [-o bulgular.json]
+                                                             yazım analizi; --sinif verilirse
+                                                             okunabilirlik analizi de yapılır
 """
 from __future__ import annotations
 
@@ -51,12 +53,17 @@ def cikar(argumanlar: list[str]) -> int:
 
 
 def analiz(argumanlar: list[str]) -> int:
+    from .analiz.okunabilirlik import OkunabilirlikAnalizoru
     from .analiz.yazim import YazimAnalizoru  # zeyrek yüklemesi yalnızca analizde
 
-    ayrac = argparse.ArgumentParser(prog="dkds analiz", description="DKDS – PDF'te yazım analizi yapar.")
+    ayrac = argparse.ArgumentParser(
+        prog="dkds analiz", description="DKDS – PDF'te yazım ve okunabilirlik analizi yapar."
+    )
     ayrac.add_argument("pdf", type=Path, help="İncelenecek PDF dosyası")
     ayrac.add_argument("-o", "--cikti", type=Path, help="Bulguların yazılacağı JSON dosyası")
     ayrac.add_argument("--ocr-kapali", action="store_true", help="Taranmış sayfalarda OCR yapma")
+    ayrac.add_argument("--sinif", type=int, choices=range(1, 13), metavar="1-12",
+                       help="Kitabın sınıf düzeyi; verilirse okunabilirlik analizi de yapılır")
     arg = ayrac.parse_args(argumanlar)
 
     if not arg.pdf.exists():
@@ -66,12 +73,16 @@ def analiz(argumanlar: list[str]) -> int:
     sonuc = pdf_oku(arg.pdf, ocr=not arg.ocr_kapali)
     bulgular = YazimAnalizoru().analiz_et(sonuc.paragraflar)
 
+    okunabilirlik = None
+    if arg.sinif:
+        okunabilirlik = OkunabilirlikAnalizoru(arg.sinif).incele(sonuc.paragraflar)
+        bulgular += okunabilirlik.bulgular
+
     cikti = arg.cikti or Path("cikti") / f"{arg.pdf.stem}_bulgular.json"
-    _json_yaz(cikti, {
-        "kaynak": sonuc.kaynak,
-        "uyarilar": sonuc.uyarilar,
-        "bulgular": [asdict(b) for b in bulgular],
-    })
+    kayit = {"kaynak": sonuc.kaynak, "uyarilar": sonuc.uyarilar, "bulgular": [asdict(b) for b in bulgular]}
+    if okunabilirlik:
+        kayit["okunabilirlik_ozeti"] = okunabilirlik.ozet
+    _json_yaz(cikti, kayit)
 
     paragraf_turu = {(p.sayfa, p.paragraf): p.tur for p in sonuc.paragraflar}
     print(f"Kaynak  : {sonuc.kaynak}")
@@ -79,9 +90,35 @@ def analiz(argumanlar: list[str]) -> int:
     _ozet_yaz("Kriter", Counter(b.kriter for b in bulgular))
     _ozet_yaz("Bulgu türü", Counter(b.tur for b in bulgular))
     _ozet_yaz("Paragraf türü", Counter(paragraf_turu[(b.sayfa, b.paragraf)] for b in bulgular))
+    if okunabilirlik:
+        _okunabilirlik_ozeti_yaz(okunabilirlik.ozet)
+    else:
+        print("\nOkunabilirlik analizi için kitabın sınıfını verin: --sinif 5")
     _uyarilari_yaz(sonuc.uyarilar)
     print(f"\nBulgular kaydedildi: {cikti}")
     return 0
+
+
+def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
+    from .analiz.okunabilirlik import sayi_yaz
+
+    print(f"\nOkunabilirlik özeti ({ozet['sinif']}. sınıf kitabı):")
+    print(f"  Değerlendirilen : {ozet['birim_sayisi']} metin birimi, {ozet['kelime']} kelime, {ozet['cumle']} cümle")
+    if ozet["atlanan"]:
+        atlanan = ", ".join(f"{ad}: {sayi}" for ad, sayi in ozet["atlanan"].items())
+        print(f"  Atlanan         : {atlanan}")
+    if "atesman" not in ozet:
+        return
+    print(f"  Ateşman         : {sayi_yaz(ozet['atesman']['puan'])} ({ozet['atesman']['duzey']} düzeyi)")
+    print(f"  Bezirci-Yılmaz  : {sayi_yaz(ozet['bezirci_yilmaz']['puan'], 2)} ({ozet['bezirci_yilmaz']['duzey']})")
+    print(f"  Ort. cümle      : {sayi_yaz(ozet['ortalama_cumle_uzunlugu'])} kelime, "
+          f"kelime başına {sayi_yaz(ozet['hece_kelime'], 2)} hece")
+    print(f"  En zor {len(ozet['en_zor_paragraflar'])} paragraf (Ateşman puanı düşük = zor):")
+    for sira, p in enumerate(ozet["en_zor_paragraflar"], start=1):
+        paragraf = f"¶{p['paragraflar'][0]}" + (f"–{p['paragraflar'][-1]}" if len(p["paragraflar"]) > 1 else "")
+        print(f"   {sira:>2}. s.{p['sayfa']} {paragraf}  Ateşman {sayi_yaz(p['atesman'])} ({p['atesman_duzeyi']}), "
+              f"B-Y {sayi_yaz(p['bezirci_yilmaz'])}, {p['kelime']} kelime, cümle {sayi_yaz(p['ortalama_cumle_uzunlugu'])}")
+        print(f"       {p['metin']}")
 
 
 def _json_yaz(yol: Path, veri) -> None:
