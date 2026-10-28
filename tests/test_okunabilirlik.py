@@ -16,7 +16,9 @@ from dkds.analiz.okunabilirlik import (
     cumlelere_ayir,
     hece_say,
     kelimeleri_bul,
+    cikarim_suphesi,
     metin_metrikleri,
+    tekrar_eden_dizi,
 )
 from dkds.analiz.referans import Referans, SinifVerisi, referans_olustur
 from dkds.models import Paragraf
@@ -185,21 +187,29 @@ def paragraf(metin, sayfa=1, no=1, tur="govde"):
 KOLAY = ("Ali topu attı. Ayşe topu tuttu. Ali koştu. Ayşe güldü. Top suya düştü. Hep birlikte eve gittik. "
          "Hava çok güzel. Kuş öttü. Biz okula gittik. Dersler başladı. Ali çok sevindi. Ayşe de sevindi. "
          "Gün güzel geçti. Akşam eve döndük. Hava çok güzeldi.")
-# Zor: tek uzun cümle, 44 kelime, 182 hece -> Ateşman -82,19 (lisans üstü)
-#   198,825 - 40,175 × (182/44) - 2,610 × 44 = 198,825 - 166,18 - 114,84
+# Zor: 44 kelime, 10 cümle, 198 hece -> Ateşman 6,55 (lisans üstü; hece/kelime 4,5 gerçek metinde bile nadir)
+#   198,825 - 40,175 × (198/44) - 2,610 × 4,4 = 198,825 - 180,79 - 11,48
 ZOR = ("Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışların sürekliliğini "
-       "sağlayabilmek amacıyla öğrencilerimizin ailelerinin eğitim süreçlerine katılımlarını "
-       "değerlendirebilecek göstergeleri belirlemeleri, bu doğrultuda okul yönetimlerinin velilerle "
-       "düzenli görüşmeler gerçekleştirmesi, ayrıca öğrencilerin evde yaptıkları çalışmaların düzenli "
-       "kontrol edilmesi ve sınıf öğretmenlerinin bu sürecin her aşamasında aktif rol almaları "
-       "gerekmektedir.")
-# Sınırdaki iki metin (5. sınıf kitabı = 5-6. sınıf düzeyi): A 1 kademe, B 2 kademe üstünde
+       "sağlayabilmek gerekmektedir. Velilerin eğitim süreçlerine katılımlarını değerlendirebilecek "
+       "göstergeleri belirlemeleri, okul yönetimlerinin velilerle düzenli görüşmeler gerçekleştirmesi "
+       "gerekmektedir. Öğrencilerin evde yaptıkları çalışmaların kontrol edilmesi sağlanmalıdır. "
+       "Sorumluluk paylaşılmalıdır. Aileler bilgilendirilmelidir. Süreç izlenmelidir. Bunlar zorunludur. "
+       "Notlar tutulmalıdır. Rapor yazılmalıdır. Ödev verilmelidir.")
+# Sınırdaki iki metin (5. sınıf kitabı = 5-6. sınıf düzeyi): A 1 kademe, B 2 kademe üstünde.
+# Her biri iki kopyadan oluşur; kopyalarda aynı hece/kelime sayısındaki sözcükler değiştirilmiştir
+# (aynı 10 kelimelik dizi tekrar ederse birim çıkarım şüphesi sayılır ve ölçüme girmez).
 ORTA_A = ("Ay, Dünya’nın tek doğal uydusudur ve onun etrafında dolanır. "
           "Güneş, kendi etrafında dönen büyük bir yıldızdır. "
-          "Gezegenler, Güneş’in çevresinde dolanarak hareket eder. ") * 2  # Ateşman 75,6 (7-8. sınıf)
+          "Gezegenler, Güneş’in çevresinde dolanarak hareket eder. "
+          "Ay, Dünya’nın bir doğal uydusudur ve bunun etrafında dolanır. "
+          "Güneş, bütün etrafında yanan küçük bir yıldızdır. "
+          "Gezegenler, Dünya’nın çevresinde dolanarak devinim eder.")  # Ateşman 75,6 (7-8. sınıf)
 ORTA_B = ("Ay, Dünya’nın etrafında dolanan doğal bir uydudur. "
           "Güneş, gezegenlerimize ışık ve ısı veren büyük bir yıldızdır. "
-          "Gezegenler, Güneş’in çevresinde belirli yörüngelerde hareket eder. ") * 2  # Ateşman 68,8 (9-10. sınıf)
+          "Gezegenler, Güneş’in çevresinde belirli yörüngelerde hareket eder. "
+          "Ay, Dünya’nın çevresinde dolanan doğal bir uydudur. "
+          "Yıldız, gezegenlerimize ısı ve ışık veren küçük bir yıldızdır. "
+          "Gezegenler, Dünya’nın çevresinde belirli yörüngelerde devinim eder.")  # Ateşman 68,8 (9-10. sınıf)
 
 
 class AtlamaNedeniTest(unittest.TestCase):
@@ -323,27 +333,27 @@ class AnalizTest(unittest.TestCase):
         self.assertEqual(b.guven, 0.7)  # eşiğin ortancaya olan mesafesinden çok daha aşağıda: üst sınır
         # açıklama referansa dayanır; Ateşman tablosu yalnızca bilgidir
         for parca in (
-            "Bu paragraf, 5. sınıf kitaplarındaki paragrafların %90'ından daha zor (Ateşman puanı -82,2; "
+            "Bu paragraf, 5. sınıf kitaplarındaki paragrafların %90'ından daha zor (Ateşman puanı 6,6; "
             "5. sınıf referansında %10 sınırı 74,0, ortanca 90,0)",
             "referanstaki hiçbir sınıfın tipik aralığına girmiyor: 7. sınıf kitaplarındaki paragrafların da "
             "%90'ından daha zor",
-            "Bezirci-Yılmaz puanı 122,7 (akademik); 5. sınıf referansının ortancası 110,0, %90 sınırı 126,0",
-            "Ortalama cümle uzunluğu 44,0 kelime (kitap ortalaması 5,4), kelime başına 4,14 hece",
+            "Bezirci-Yılmaz puanı 12,1 (lisans); 5. sınıf referansının ortancası 110,0, %90 sınırı 126,0",
+            "Ortalama cümle uzunluğu 4,4 kelime (kitap ortalaması 3,4), kelime başına 4,50 hece",
             "Ateşman tablosuna göre lisans üstü düzeyi (yalnızca bilgi)",
         ):
             self.assertIn(parca, b.aciklama)
         self.assertNotIn("kademe", b.aciklama)  # eski kademe kuralının dili kalmadı
-        self.assertIn("En uzun cümle 44 kelime", b.oneri)
+        self.assertIn("En uzun cümle 14 kelime", b.oneri)
 
     def test_en_uzun_kelimeler_hece_sirasiyla(self):
         b = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).bulgular[0]
-        self.assertIn("En uzun kelimeler: değerlendirebilecek (8 hece), öğrencilerimizin (7 hece), "
-                      "gerçekleştirmesi (6 hece), öğretmenlerinin (6 hece).", b.aciklama)
+        self.assertIn("En uzun kelimeler: bilgilendirilmelidir (8 hece), değerlendirebilecek (8 hece), "
+                      "gerçekleştirmesi (6 hece), paylaşılmalıdır (6 hece).", b.aciklama)
 
     def test_oneri_cumleyi_virgulden_boler(self):
         b = self.sonuc([paragraf(ZOR)]).bulgular[0]
-        self.assertIn("«… okul yönetimlerinin velilerle düzenli görüşmeler gerçekleştirmesi.»", b.oneri)
-        self.assertIn("«Ayrıca öğrencilerin evde yaptıkları çalışmaların düzenli …»", b.oneri)
+        self.assertIn("«… eğitim süreçlerine katılımlarını değerlendirebilecek göstergeleri belirlemeleri.»", b.oneri)
+        self.assertIn("«Okul yönetimlerinin velilerle düzenli görüşmeler gerçekleştirmesi …»", b.oneri)
 
     def test_esik_referansin_yuzde_10_dilimidir(self):
         # ORTA_A (Ateşman 75,6) %10 sınırının (74) üstünde: bulgu yok; ORTA_B (68,8) altında: bulgu
@@ -382,8 +392,8 @@ class AnalizTest(unittest.TestCase):
                       "bu yüzden kitabın kendi dağılımı kullanıldı.", aciklama)
         self.assertNotIn("Bezirci-Yılmaz puanı 122,7 (akademik);", aciklama)  # referans karşılaştırması yok
         self.assertEqual(s.ozet["referans"]["yontem"], "kitap_ici")
-        # iki birimin puanları -82,19 ve 114,04: kitabın %10 sınırı -82,19 + 196,23 × 0,1 = -62,57
-        self.assertAlmostEqual(s.ozet["referans"]["p10"], -62.57, places=1)
+        # iki birimin puanları 6,55 ve 114,04: kitabın %10 sınırı 6,55 + 107,48 × 0,1 = 17,30
+        self.assertAlmostEqual(s.ozet["referans"]["p10"], 17.30, places=1)
 
     def test_referans_hic_yoksa_kitap_ici(self):
         s = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)], referans=Referans())
@@ -411,9 +421,9 @@ class AnalizTest(unittest.TestCase):
 
     def test_ozet(self):
         ozet = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).ozet
-        self.assertEqual((ozet["sinif"], ozet["birim_sayisi"], ozet["kelime"], ozet["cumle"]), (5, 2, 86, 16))
-        # toplam: 86 kelime, 16 cümle -> kelime/cümle = 5,375
-        self.assertAlmostEqual(ozet["ortalama_cumle_uzunlugu"], 86 / 16)
+        self.assertEqual((ozet["sinif"], ozet["birim_sayisi"], ozet["kelime"], ozet["cumle"]), (5, 2, 86, 25))
+        # toplam: 86 kelime, 25 cümle -> kelime/cümle = 3,44
+        self.assertAlmostEqual(ozet["ortalama_cumle_uzunlugu"], 86 / 25)
         self.assertIn("puan", ozet["atesman"])
         self.assertIn("duzey", ozet["bezirci_yilmaz"])
         # en zor paragraf listesi Ateşman puanı düşükten yükseğe sıralıdır
@@ -427,20 +437,20 @@ class AnalizTest(unittest.TestCase):
         self.assertEqual((r["yontem"], r["sinif"], r["ara_deger"], r["kitaplar"], r["birim_sayisi"]),
                          ("sinif_referansi", 5, False, ["ref5.pdf"], 21))
         self.assertEqual((r["p10"], r["ortanca"]), (74.0, 90.0))
-        # kitabın ortanca birim puanı 15,92; referans ortancası 90
-        self.assertAlmostEqual(r["medyan_farki"], (114.037 - 82.193) / 2 - 90, places=2)
+        # kitabın ortanca birim puanı 60,30; referans ortancası 90
+        self.assertAlmostEqual(r["medyan_farki"], (114.037 + 6.553) / 2 - 90, places=2)
 
     def test_ozet_isaretlenen_oran_ve_dagilim(self):
         ozet = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).ozet
         self.assertEqual((ozet["isaretlenen_birim"], ozet["isaretlenen_oran"]), (1, 0.5))
         d = ozet["atesman_dagilimi"]
-        # iki birimin puanı 114,037 ve -82,193 (elle doğrulandı): ortalama 15,92, medyan aynı
-        self.assertAlmostEqual(d["ortalama"], (114.037 - 82.193) / 2, places=2)
+        # iki birimin puanı 114,037 ve 6,553 (elle doğrulandı): ortalama 60,30, medyan aynı
+        self.assertAlmostEqual(d["ortalama"], (114.037 + 6.553) / 2, places=2)
         self.assertAlmostEqual(d["medyan"], d["ortalama"], places=6)
-        self.assertAlmostEqual(d["std"], (114.037 + 82.193) / 2, places=2)
-        # doğrusal ara değerli yüzdelik: -82,193 + 196,23 × 0,1 ve × 0,9
-        self.assertAlmostEqual(d["p10"], -62.57, places=1)
-        self.assertAlmostEqual(d["p90"], 94.42, places=1)
+        self.assertAlmostEqual(d["std"], (114.037 - 6.553) / 2, places=2)
+        # doğrusal ara değerli yüzdelik: 6,553 + 107,484 × 0,1 ve × 0,9
+        self.assertAlmostEqual(d["p10"], 17.30, places=1)
+        self.assertAlmostEqual(d["p90"], 103.29, places=1)
 
     def test_ozet_en_zor_paragraf_sayisi_sinirlidir(self):
         paragraflar = [paragraf(ZOR + f" Ek{n}.", no=n) for n in range(1, 16)]
@@ -453,11 +463,101 @@ class AnalizTest(unittest.TestCase):
         self.assertNotIn("atesman", s.ozet)
 
     def test_birlestirilen_paragraflar_aciklamada_belirtilir(self):
-        zor_kisa = "Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışların sürekliliği."  # 7 kelime
-        s = self.sonuc([paragraf(zor_kisa, no=n) for n in range(1, 8)])  # 6. paragrafta 42 kelimeye ulaşılır
+        zor_kisalar = [  # 7 kelimelik, birbirinden farklı zor cümleler
+            "Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışların sürekliliği.",
+            "Velilerin eğitim süreçlerine katılımlarını değerlendirebilecek göstergeleri belirlemeleri.",
+            "Yönetimlerin düzenli görüşmeler gerçekleştirmesi gerekmektedir sürekli olarak.",
+            "Öğrencilerin evde yaptıkları çalışmaların kontrol edilmesi sağlanmalıdır.",
+            "Aileler çocukları ile birlikte kitap okumalıdır elbette.",
+            "Biz her gün okula gidip ders çalışırız.",
+            "Ali ile Ayşe bugün parkta top oynadı.",
+        ]
+        s = self.sonuc([paragraf(m, no=n) for n, m in enumerate(zor_kisalar, start=1)])  # 6. paragrafta 42 kelimeye ulaşılır
         self.assertEqual(len(s.bulgular), 1)
         self.assertIn("7 kısa gövde paragrafı birleştirilerek", s.bulgular[0].aciklama)  # 7. kalan parça eklenir
         self.assertIn("paragraf 1–7", s.bulgular[0].aciklama)
+
+
+# Tek 44 kelimelik cümle: Ateşman -82,19 (gerçek bir kitapta bu, çıkarım hatasının işaretidir)
+UZUN_CUMLE = ("Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışların sürekliliğini "
+              "sağlayabilmek amacıyla öğrencilerimizin ailelerinin eğitim süreçlerine katılımlarını "
+              "değerlendirebilecek göstergeleri belirlemeleri, bu doğrultuda okul yönetimlerinin velilerle "
+              "düzenli görüşmeler gerçekleştirmesi, ayrıca öğrencilerin evde yaptıkları çalışmaların düzenli "
+              "kontrol edilmesi ve sınıf öğretmenlerinin bu sürecin her aşamasında aktif rol almaları "
+              "gerekmektedir.")
+
+
+class TekrarEdenDiziTest(unittest.TestCase):
+    def test_ornusmeden_tekrar_eden_dizi_bulunur(self):
+        dizi = "bu temada yazılarınızı zenginleştirecek biçimde söz varlığınızı kullanmaya yönelik öğrendiklerinizden"
+        metin = f"{dizi} ilk kez. Sonra başka şeyler anlatılır. {dizi.capitalize()} ikinci kez."
+        self.assertEqual(tekrar_eden_dizi(metin), dizi)
+
+    def test_buyuk_kucuk_harf_ve_noktalama_ayirt_edilmez(self):
+        self.assertIsNotNone(tekrar_eden_dizi("Ali topu attı, Ayşe topu tuttu, Veli de koştu sonra. "
+                                              "ALİ topu attı; ayşe TOPU tuttu; VELİ de koştu SONRA."))
+
+    def test_kisa_ortak_dizi_tekrar_sayilmaz(self):
+        # 5 kelimelik ortak dizi (eşik 10): "Güneş'in çevresinde dolanır" gibi doğal tekrarlar
+        self.assertIsNone(tekrar_eden_dizi("Gezegenler Güneş’in çevresinde dolanır ve döner. "
+                                           "Dünya Güneş’in çevresinde dolanır ve döner."))
+
+    def test_ust_uste_binen_tekrar_sayilmaz(self):
+        self.assertIsNone(tekrar_eden_dizi("ve ve ve ve ve ve ve ve"))  # örtüşen pencereler aynı dizi değil
+
+    def test_cikarim_suphesi_nedenleri(self):
+        self.assertEqual(cikarim_suphesi("herhangi bir metin", -0.1), "negatif_puan")
+        self.assertEqual(cikarim_suphesi("a b c d e f g h i j a b c d e f g h i j", 50.0), "tekrar")
+        self.assertIsNone(cikarim_suphesi("kısa bir metin", 0.0))  # 0 tam sınırda: şüphe yok
+
+
+class CikarimSuphesiTest(unittest.TestCase):
+    """Ateşman < 0 ya da tekrarlayan dizi: okunabilirlik bulgusu değil, olası metin çıkarma sorunu."""
+
+    def sonuc(self, paragraflar, sinif=5):
+        return OkunabilirlikAnalizoru(sinif=sinif, referans=REFERANS).incele(paragraflar)
+
+    def test_negatif_puanli_birim_cikarim_sorunu_olarak_raporlanir(self):
+        s = self.sonuc([paragraf(KOLAY, no=1), paragraf(UZUN_CUMLE, no=2)])
+        self.assertEqual([(b.paragraf, b.kriter, b.tur) for b in s.bulgular],
+                         [(2, "okunabilirlik", "cikarim_sorunu")])
+        b = s.bulgular[0]
+        self.assertEqual(b.guven, 0.3)
+        self.assertIn("Olası metin çıkarma sorunu, okunabilirlik bulgusu değil.", b.aciklama)
+        self.assertIn("Ateşman puanı -82,2 (0'ın altında)", b.aciklama)
+        self.assertNotIn("sinif_ustu", {x.tur for x in s.bulgular})
+
+    def test_cikarim_suphesi_olcume_ve_orana_girmez(self):
+        s = self.sonuc([paragraf(KOLAY, no=1), paragraf(UZUN_CUMLE, no=2), paragraf(ZOR, no=3)])
+        o = s.ozet
+        self.assertEqual((o["birim_sayisi"], o["cikarim_suphesi_birim"]), (2, 1))
+        self.assertEqual((o["isaretlenen_birim"], o["isaretlenen_oran"]), (1, 0.5))  # yalnızca ZOR sayılır
+        self.assertEqual([p["paragraflar"] for p in o["en_zor_paragraflar"]], [[3], [1]])
+        # kitap dağılımı ve toplam metrikler şüpheli birimi içermez: 42 + 44 kelime
+        self.assertEqual(o["kelime"], 86)
+        self.assertAlmostEqual(o["atesman_dagilimi"]["medyan"], (114.037 + 6.553) / 2, places=2)
+
+    def test_tekrarlayan_dizi_cikarim_sorunu(self):
+        # aynı metnin iki kez gelmesi (kopya katman); puan pozitif olsa bile ölçüm dışı
+        s = self.sonuc([paragraf(ZOR + " " + ZOR)])
+        self.assertEqual([b.tur for b in s.bulgular], ["cikarim_sorunu"])
+        self.assertIn("aynı kelime dizisi iki kez geçiyor", s.bulgular[0].aciklama)
+        self.assertEqual((s.ozet["birim_sayisi"], s.ozet["cikarim_suphesi_birim"]), (0, 1))
+
+    def test_suphe_birimi_degeri_ne_olursa_olsun_raporlanir(self):
+        # kolay ama kopyalanmış metin de çıkarım sorunudur (puanı eşiğin üstünde olsa da)
+        s = self.sonuc([paragraf(KOLAY + " " + KOLAY)])
+        self.assertEqual([b.tur for b in s.bulgular], ["cikarim_sorunu"])
+
+    def test_olculebilir_birimler_aynen_degerlendirilir(self):
+        s = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)])
+        self.assertEqual([b.tur for b in s.bulgular], ["sinif_ustu"])
+        self.assertEqual(s.ozet["cikarim_suphesi_birim"], 0)
+
+    def test_birim_alanlari(self):
+        birimler, _ = OkunabilirlikAnalizoru(5, referans=REFERANS).birimleri_olustur(
+            [paragraf(UZUN_CUMLE, no=1), paragraf(KOLAY, no=2)])
+        self.assertEqual([(b.suphe, b.olculebilir) for b in birimler], [("negatif_puan", False), (None, True)])
 
 
 class BolmeNoktasiTest(unittest.TestCase):

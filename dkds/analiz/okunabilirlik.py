@@ -242,7 +242,7 @@ INCELENEN_TURLER = {"govde"}
 # Ölçümü değiştiren her düzenlemede (cümle ayırma, hece/kelime sayımı, birim oluşturma,
 # atlama kuralları, formüller) artırılır. referans.json bu sürümle üretilir; sürüm
 # uyuşmazsa referans yeniden üretilmelidir: python -m dkds referans (bkz. README).
-OLCUM_SURUMU = 2  # 2: form/künye paragrafları atlanıyor
+OLCUM_SURUMU = 3  # 2: form/künye atlanıyor; 3: kopya metin katmanı temizleniyor, çıkarım şüphesi birimleri ölçüm dışı
 
 # Bundan az kelimeli gövde paragrafları aynı sayfadaki komşu gövde paragraflarıyla
 # birleştirilerek değerlendirilir; çok kısa metinde formüller güvenilir sonuç vermez.
@@ -253,6 +253,15 @@ EN_AZ_KELIME = 40
 # 8+ kelimelik diziler atlanıyordu; kısa parçalar (fen5 s.86, sosyal5 s.115) birleşip en zor
 # paragraf listesini doldurduğu için sınır, sınıflandırıcının etiket sınırına (4 kelime) çekildi.
 ISARETSIZ_EN_AZ_KELIME = 4
+# Çıkarım şüphesi: Ateşman puanı 0'ın altındaysa (gerçek bir metin bu kadar uzun cümlelerle
+# yazılmaz: kopya katman, okuma sırası karışması ya da noktalamasız birleşme) ya da metinde
+# aynı kelime dizisi birbiriyle örtüşmeden iki kez geçiyorsa (kopya metin katmanı) birim
+# okunabilirlik ölçümüne girmez; "olası metin çıkarma sorunu" olarak ayrı bulgu verilir.
+# Dizi uzunluğu 10: 6 ve 8 kelimede gerçek şablon cümleler de yakalanıyordu (turkce5.pdf s.12
+# "Okulunuzdaki Türkçe öğretmenleri tarafından belirlenen listeden öğretmeninizle seçeceğiniz" iki
+# ödev maddesinde; fen7 "…sistemini oluşturan yapı ve organların…" soruları); kopya katmanlar ise
+# satırları bütün olarak tekrarlar.
+TEKRAR_EN_AZ_KELIME = 10
 EN_ZOR_PARAGRAF_SAYISI = 10
 EN_UZUN_KELIME_SAYISI = 4
 SORUNLU_METIN_EN_FAZLA = 240
@@ -275,6 +284,12 @@ class Birim:
     konum: Konum
     cumleler: list[str]
     metrikler: Metrikler
+    suphe: str | None = None  # None değilse olası metin çıkarma sorunu (bkz. cikarim_suphesi)
+
+    @property
+    def olculebilir(self) -> bool:
+        """Formüllerle ölçülebilir ve çıkarım şüphesi taşımıyor mu (dağılıma ve referansa girer)."""
+        return self.metrikler.hazir and self.suphe is None
 
 
 @dataclass
@@ -352,6 +367,28 @@ def atlama_nedeni(metin: str) -> str | None:
     return None
 
 
+def tekrar_eden_dizi(metin: str, uzunluk: int = TEKRAR_EN_AZ_KELIME) -> str | None:
+    """Metinde örtüşmeden iki kez geçen ilk `uzunluk` kelimelik dizi (yoksa None)."""
+    # Türkçe küçük harf: casefold() "İ"yi "i̇" (i + nokta) yapar, "I"yı "i" bırakır
+    kelimeler = [k.replace("İ", "i").replace("I", "ı").lower() for k in kelimeleri_bul(metin)]
+    ilk_gorulen: dict[tuple[str, ...], int] = {}
+    for i in range(len(kelimeler) - uzunluk + 1):
+        dizi = tuple(kelimeler[i:i + uzunluk])
+        onceki = ilk_gorulen.setdefault(dizi, i)
+        if onceki != i and i - onceki >= uzunluk:
+            return " ".join(dizi)
+    return None
+
+
+def cikarim_suphesi(metin: str, atesman: float) -> str | None:
+    """Birim olası bir metin çıkarma sorunu taşıyorsa nedeni, yoksa None."""
+    if atesman < 0:
+        return "negatif_puan"
+    if tekrar_eden_dizi(metin):
+        return "tekrar"
+    return None
+
+
 def _birlestir(konumlar: list[Konum]) -> Konum:
     return (min(k[0] for k in konumlar), min(k[1] for k in konumlar),
             max(k[2] for k in konumlar), max(k[3] for k in konumlar))
@@ -398,13 +435,15 @@ def birimleri_olustur(paragraflar: Iterable[Paragraf]) -> tuple[list[Birim], Cou
 def _birim(sayfa_no: int, grup: list[Paragraf]) -> Birim:
     metin = " ".join(p.metin for p in grup)
     cumleler = cumlelere_ayir(metin)
+    metrikler = metrikleri_hesapla(cumleler)
     return Birim(
         sayfa=sayfa_no,
         paragraflar=[p.paragraf for p in grup],
         metin=metin,
         konum=_birlestir([p.konum for p in grup]),
         cumleler=cumleler,
-        metrikler=metrikleri_hesapla(cumleler),
+        metrikler=metrikler,
+        suphe=cikarim_suphesi(metin, metrikler.atesman) if metrikler.hazir else None,
     )
 
 
@@ -468,7 +507,8 @@ class OkunabilirlikAnalizoru:
 
     def incele(self, paragraflar: Iterable[Paragraf]) -> OkunabilirlikSonucu:
         birimler, atlanan = self.birimleri_olustur(paragraflar)
-        birimler = [b for b in birimler if b.metrikler.hazir]
+        suphe_birimleri = [b for b in birimler if b.metrikler.hazir and b.suphe]
+        birimler = [b for b in birimler if b.olculebilir]
         toplam = Metrikler()
         for b in birimler:
             toplam = toplam + b.metrikler
@@ -479,7 +519,28 @@ class OkunabilirlikAnalizoru:
         ozet = self._ozet(birimler, toplam, atlanan, esik)
         ozet["isaretlenen_birim"] = len(bulgular)
         ozet["isaretlenen_oran"] = len(bulgular) / len(birimler) if birimler else 0.0
-        return OkunabilirlikSonucu(bulgular=bulgular, ozet=ozet)
+        ozet["cikarim_suphesi_birim"] = len(suphe_birimleri)
+        cikarim_bulgulari = [self._cikarim_bulgusu(b) for b in suphe_birimleri]
+        return OkunabilirlikSonucu(bulgular=bulgular + cikarim_bulgulari, ozet=ozet)
+
+    @staticmethod
+    def _cikarim_bulgusu(b: Birim) -> Bulgu:
+        """Okunabilirlik sorunu değil, olası metin çıkarma sorunu (yazımdaki karakter_kaybı gibi)."""
+        puan = b.metrikler.atesman
+        if b.suphe == "negatif_puan":
+            neden = (f"Ateşman puanı {sayi_yaz(puan)} (0'ın altında): gerçek bir metin bu kadar uzun cümlelerle "
+                     f"yazılmaz ({sayi_yaz(b.metrikler.ortalama_cumle_uzunlugu)} kelimelik cümle).")
+        else:
+            neden = (f"Metinde aynı kelime dizisi iki kez geçiyor («{tekrar_eden_dizi(b.metin)}»): kopya metin "
+                     "katmanı olabilir.")
+        return Bulgu(
+            sayfa=b.sayfa, paragraf=b.paragraflar[0], kriter=KRITER,
+            sorunlu_metin=_kisalt(b.metin, 40) if len(b.metin) > SORUNLU_METIN_EN_FAZLA else b.metin,
+            aciklama=(f"Olası metin çıkarma sorunu, okunabilirlik bulgusu değil. {neden} Birim okunabilirlik "
+                      "ölçümüne ve referansa katılmadı; basılı sayfayla karşılaştırılmalı."),
+            guven=0.3, oneri="Basılı sayfadaki metinle karşılaştırın; çıkarım hatasıysa düzeltilmeli.",
+            konum=b.konum, tur="cikarim_sorunu",
+        )
 
     def _referans_ifadesi(self, puan: float, esik: Esik) -> str:
         """Bulgunun referansa dayalı ilk cümlesi."""

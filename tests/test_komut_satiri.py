@@ -18,11 +18,12 @@ KOLAY = ("Ali topu attı. Ayşe topu tuttu. Ali koştu. Ayşe güldü. Top suya 
          "Hava çok güzel. Kuş öttü. Biz okula gittik. Dersler başladı. Ali çok sevindi. Ayşe de sevindi. "
          "Gün güzel geçti. Akşam eve döndük. Hava çok güzeldi.")
 ZOR = ("Okulumuzdaki öğretmenlerin çocuklarımıza kazandırmaya çalıştıkları davranışların sürekliliğini "
-       "sağlayabilmek amacıyla öğrencilerimizin ailelerinin eğitim süreçlerine katılımlarını "
-       "değerlendirebilecek göstergeleri belirlemeleri, bu doğrultuda okul yönetimlerinin velilerle "
-       "düzenli görüşmeler gerçekleştirmesi, ayrıca öğrencilerin evde yaptıkları çalışmaların düzenli "
-       "kontrol edilmesi ve sınıf öğretmenlerinin bu sürecin her aşamasında aktif rol almaları "
-       "gerekmektedir.")
+       "sağlayabilmek gerekmektedir. Velilerin eğitim süreçlerine katılımlarını değerlendirebilecek "
+       "göstergeleri belirlemeleri, okul yönetimlerinin velilerle düzenli görüşmeler gerçekleştirmesi "
+       "gerekmektedir. Öğrencilerin evde yaptıkları çalışmaların kontrol edilmesi sağlanmalıdır. "
+       "Sorumluluk paylaşılmalıdır. Aileler bilgilendirilmelidir. Süreç izlenmelidir. Bunlar zorunludur. "
+       "Notlar tutulmalıdır. Rapor yazılmalıdır. Ödev verilmelidir.").translate(str.maketrans("ğşıĞŞİ", "gsiGSI"))
+# (PDF'e yazılan yerleşik yazı tipi ğ, ş, ı'yı taşımaz; ı→i, ğ→g, ş→s hece sayısını değiştirmez)
 
 
 @unittest.skipIf(fitz is None, "PyMuPDF kurulu değil")

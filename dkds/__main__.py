@@ -133,6 +133,9 @@ def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
               f"{sayi_yaz(r['p10'])} kullanıldı")
     print(f"  İşaretlenen     : {ozet['isaretlenen_birim']} / {ozet['birim_sayisi']} birim "
           f"(%{ozet['isaretlenen_oran'] * 100:.0f})")
+    if ozet.get("cikarim_suphesi_birim"):
+        print(f"  Çıkarım şüphesi : {ozet['cikarim_suphesi_birim']} birim (Ateşman < 0 ya da tekrarlayan kelime dizisi) "
+              "ölçüme katılmadı; olası metin çıkarma sorunu olarak raporlandı")
     if r and r["yontem"] == "sinif_referansi" and ozet["isaretlenen_oran"] > 0.25:
         # (sayıya Türkçe ek getirmemek için "%40'ı" gibi bir ifade kurulmuyor)
         print(f"  ! Uyarı: {r['sinif']}. sınıf referansının %10 diliminin altına düşen birim oranı "
@@ -171,11 +174,13 @@ def referans(argumanlar: list[str]) -> int:
         birimler, _ = birimleri_olustur(sonuc.paragraflar)
         veri = veriler.setdefault(int(sinif_metni), SinifVerisi())
         for b in birimler:
-            if b.metrikler.hazir:
+            if b.olculebilir:
                 veri.atesman.append(b.metrikler.atesman)
                 veri.bezirci_yilmaz.append(b.metrikler.bezirci_yilmaz)
         veri.kitaplar.append(Path(pdf).name)
-        print(f"  {sinif_metni}. sınıf: {Path(pdf).name} -> {len(birimler)} birim")
+        suphe = sum(1 for b in birimler if b.metrikler.hazir and b.suphe)
+        print(f"  {sinif_metni}. sınıf: {Path(pdf).name} -> {len(birimler) - suphe} birim"
+              + (f" ({suphe} olası çıkarım sorunu dışarıda bırakıldı)" if suphe else ""))
 
     aciklama = (
         "Sınıf başına paragraf (birim) bazında Ateşman ve Bezirci-Yılmaz puanlarının ortancası, %10 ve %90 "
