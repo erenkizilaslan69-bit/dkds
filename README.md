@@ -8,7 +8,7 @@ Tespit edilen her sorun, açıklamasıyla birlikte kitabın ilgili **sayfa ve pa
 | Kriter | Yöntem | Durum |
 |---|---|---|
 | Yazım ve dil hataları | Kural tabanlı + morfolojik analiz (zeyrek) | İlk sürüm |
-| Yaş / sınıf seviyesine uygunluk | İstatistiksel (Ateşman, Bezirci-Yılmaz) | İlk sürüm (sabit eşik; referans dağılım gerekiyor) |
+| Yaş / sınıf seviyesine uygunluk | İstatistiksel (Ateşman, Bezirci-Yılmaz) | İlk sürüm (sınıf referansı) |
 | Kitap içi bilgi tutarsızlığı | Yapay zekâ destekli (LLM) | Planlandı |
 
 ## Mimari
@@ -29,7 +29,8 @@ PDF ─► Metin çıkarma ─► Temizleme ─► Analizörler ─► Bulgular 
 | `dkds/siniflandirma.py` | Paragraf türü: `baslik`, `govde`, `soru`, `liste`, `etiket` (kural tabanlı) |
 | `dkds/analiz/yazim.py` | Yazım analizörü: kesin kurallar, bilinmeyen kelime, Türkçe karakter kaybı ayrımı |
 | `dkds/analiz/morfoloji.py` | zeyrek sarmalayıcısı: kelime geçerliliği, önbellek, zeyrek hata yaması |
-| `dkds/analiz/okunabilirlik.py` | Okunabilirlik analizörü: cümle ayırma, Ateşman ve Bezirci-Yılmaz formülleri, sınıf düzeyi karşılaştırması |
+| `dkds/analiz/okunabilirlik.py` | Okunabilirlik analizörü: cümle ayırma, Ateşman ve Bezirci-Yılmaz formülleri, sınıf referansıyla karşılaştırma |
+| `dkds/analiz/referans.py`, `referans.json` | Sınıf başına okunabilirlik referansı: ortanca, %10 ve %90 dilimleri (3-9. sınıf kitaplarından) |
 
 `duzen.py`, `temizleme.py` ve `siniflandirma.py` hiçbir PDF kütüphanesine bağlı değildir; böylece bağımsız olarak test edilebilirler.
 
@@ -72,9 +73,19 @@ python -m dkds analiz veri\kitap.pdf --sinif 5
 
 `--sinif` (1-12) kitabın sınıf düzeyidir; verilirse okunabilirlik analizi de yapılır, verilmezse
 yalnızca yazım analizi çalışır. Okunabilirlik analizi yalnızca gövde paragraflarını değerlendirir:
-paragrafın Ateşman düzeyi kitabın sınıfının en az iki kademe üstündeyse bulgu üretir. Ekranda ve
-JSON'daki `okunabilirlik_ozeti` bölümünde kitabın genel Ateşman / Bezirci-Yılmaz puanı, sınıf
-düzeyi tahmini, puan dağılımı ve en zor 10 paragraf yer alır.
+paragrafın Ateşman puanı, kitabın sınıfındaki referans dağılımın %10 diliminin altındaysa (yani o
+sınıf kitaplarındaki paragrafların %90'ından daha zorsa) bulgu üretilir. Referans 3-9. sınıf
+kitaplarından çıkarılmıştır (`dkds\analiz\referans.json`); bu aralığın dışındaki sınıflarda kitabın
+kendi %10 dilimi kullanılır. Ekranda ve JSON'daki `okunabilirlik_ozeti` bölümünde kitabın genel
+Ateşman / Bezirci-Yılmaz puanı, kullanılan referans, puan dağılımı, işaretlenen oran ve en zor 10
+paragraf yer alır.
+
+Referansı yeniden üretmek (ölçüm kodu değiştiğinde ya da yeni kitap eklendiğinde):
+
+```powershell
+python -m dkds referans -k 3 veri\fen3.pdf -k 5 veri\fen5.pdf -k 5 veri\sosyalbilgiler5.pdf `
+    -k 7 veri\fen7.pdf -k 9 veri\biyoloji9.pdf
+```
 
 Bulgular `cikti\kitap_bulgular.json` dosyasına yazılır; ekranda kriter, bulgu türü ve paragraf
 türüne göre özet gösterilir. Her bulgu `Bulgu` formatındadır (sayfa, paragraf, kriter,
@@ -91,7 +102,7 @@ python -m unittest -v
 
 - [x] **Hafta 2–3:** PDF'ten sayfa/paragraf bilgisiyle metin çıkarma ve temizleme
 - [x] **Hafta 4–5:** Yazım ve dil hataları analizörü — ilk uçtan uca demo (ilk sürüm)
-- [x] **Hafta 6–7:** Okunabilirlik / sınıf seviyesi analizörü (ilk sürüm; sınıf başına referans dağılım eksik)
+- [x] **Hafta 6–7:** Okunabilirlik / sınıf seviyesi analizörü (ilk sürüm; sınıf referansı 3-9. sınıfta sınıf başına 1-2 kitaptan)
 - [ ] **Hafta 8–9:** Kitap içi bilgi tutarsızlığı analizörü (LLM)
 - [ ] **Hafta 10–11:** Arayüz ve raporlama
 - [ ] **Hafta 12:** Değerlendirme (precision / recall)

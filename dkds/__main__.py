@@ -121,12 +121,22 @@ def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
     d = ozet["atesman_dagilimi"]
     print(f"  Birim Ateşman   : medyan {sayi_yaz(d['medyan'])}, ortalama {sayi_yaz(d['ortalama'])} "
           f"(std {sayi_yaz(d['std'])}), %10-%90 aralığı {sayi_yaz(d['p10'])}–{sayi_yaz(d['p90'])}")
+    r = ozet.get("referans")
+    if r and r["yontem"] == "sinif_referansi":
+        kaynak = ("komşu sınıflardan ara değer" if r["ara_deger"]
+                  else f"{', '.join(r['kitaplar'])}; {r['birim_sayisi']} birim")
+        fark = f"{r['medyan_farki']:+.1f}".replace(".", ",")
+        print(f"  Referans        : {r['sinif']}. sınıf kitapları ({kaynak}): %10 sınırı {sayi_yaz(r['p10'])}, "
+              f"ortanca {sayi_yaz(r['ortanca'])}; bu kitabın ortancası referanstan {fark} puan farklı")
+    elif r:
+        print(f"  Referans        : {r['sinif']}. sınıf için referans tablosu yok; kitabın kendi %10 sınırı "
+              f"{sayi_yaz(r['p10'])} kullanıldı")
     print(f"  İşaretlenen     : {ozet['isaretlenen_birim']} / {ozet['birim_sayisi']} birim "
           f"(%{ozet['isaretlenen_oran'] * 100:.0f})")
-    if ozet["isaretlenen_oran"] > 0.5:
-        print(f"  ! Uyarı: birimlerin yarısından fazlası işaretlendi; ortanca paragraf bile kitap düzeyinin "
-              f"{ozet['medyan_kademe_farki']} kademe üstünde. Sabit kademe eşiği bu kitapta ayırt edici değil; "
-              "sınıf için referans dağılımla karşılaştırma gerekir.")
+    if r and r["yontem"] == "sinif_referansi" and ozet["isaretlenen_oran"] > 0.25:
+        # (sayıya Türkçe ek getirmemek için "%40'ı" gibi bir ifade kurulmuyor)
+        print(f"  ! Uyarı: {r['sinif']}. sınıf referansının %10 diliminin altına düşen birim oranı "
+              f"%{ozet['isaretlenen_oran'] * 100:.0f} (beklenen ≈ %10): kitap, sınıf düzeyinin genelinde üstünde.")
     print(f"  En zor {len(ozet['en_zor_paragraflar'])} paragraf (Ateşman puanı düşük = zor):")
     for sira, p in enumerate(ozet["en_zor_paragraflar"], start=1):
         paragraf = f"¶{p['paragraflar'][0]}" + (f"–{p['paragraflar'][-1]}" if len(p["paragraflar"]) > 1 else "")

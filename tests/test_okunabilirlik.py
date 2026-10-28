@@ -1,8 +1,10 @@
 """Okunabilirlik analizörü testleri: cümle ayırma, hece sayma ve elle hesaplanmış formül örnekleri."""
 import math
 import unittest
+import unittest.mock
 
 from dkds.analiz.okunabilirlik import (
+    OLCUM_SURUMU,
     OkunabilirlikAnalizoru,
     atlama_nedeni,
     atesman_duzeyi,
@@ -15,8 +17,8 @@ from dkds.analiz.okunabilirlik import (
     hece_say,
     kelimeleri_bul,
     metin_metrikleri,
-    sinif_kademesi,
 )
+from dkds.analiz.referans import Referans, SinifVerisi, referans_olustur
 from dkds.models import Paragraf
 
 
@@ -166,11 +168,6 @@ class DuzeyTest(unittest.TestCase):
     def test_atesman_kademeleri(self):
         self.assertEqual([atesman_kademesi(p) for p in (95, 85, 75, 65, 55, 45, 20)], [0, 1, 2, 3, 4, 5, 6])
 
-    def test_sinif_kademesi(self):
-        self.assertEqual([sinif_kademesi(s) for s in range(1, 13)], [0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4])
-        with self.assertRaises(ValueError):
-            sinif_kademesi(13)
-
     def test_bezirci_yilmaz_duzeyi(self):
         # makale: Yeşil Yol 7,34 -> 7-8. sınıf
         self.assertEqual(bezirci_yilmaz_duzeyi(7.34), "7-8. sınıf")
@@ -295,9 +292,23 @@ class BirimlerTest(unittest.TestCase):
             OkunabilirlikAnalizoru(sinif=0)
 
 
+def veri_ref(en_dusuk, en_yuksek, kitap):
+    """21 birimlik yapay referans verisi: Ateşman puanları en_dusuk..en_yuksek arasında eşit aralıklı
+    (%10 sınırı = en_dusuk + 0,1 × aralık, ortanca ortada); Bezirci-Yılmaz = 200 - Ateşman."""
+    atesman = [en_dusuk + (en_yuksek - en_dusuk) * i / 20 for i in range(21)]
+    return SinifVerisi(atesman=atesman, bezirci_yilmaz=[200 - a for a in atesman], kitaplar=[kitap])
+
+
+# 5. sınıf: Ateşman 70-110 (%10 = 74, ortanca 90, %90 = 106); Bezirci-Yılmaz ortanca 110, %90 = 126
+# 7. sınıf: Ateşman 30-70  (%10 = 34, ortanca 50, %90 = 66)
+# 6. sınıf: ikisinin ara değeri (%10 = 54, ortanca 70, %90 = 86)
+REFERANS = referans_olustur({5: veri_ref(70, 110, "ref5.pdf"), 7: veri_ref(30, 70, "ref7.pdf")},
+                            olcum_surumu=OLCUM_SURUMU)
+
+
 class AnalizTest(unittest.TestCase):
-    def sonuc(self, paragraflar, sinif=5):
-        return OkunabilirlikAnalizoru(sinif=sinif).incele(paragraflar)
+    def sonuc(self, paragraflar, sinif=5, referans=REFERANS):
+        return OkunabilirlikAnalizoru(sinif=sinif, referans=referans).incele(paragraflar)
 
     def test_kolay_metin_bulgu_uretmez_zor_metin_uretir(self):
         s = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)])
@@ -309,12 +320,19 @@ class AnalizTest(unittest.TestCase):
         # metin 240 karakteri aştığı için ilk 40 kelime + "…" gösterilir
         self.assertTrue(b.sorunlu_metin.endswith(" …"))
         self.assertTrue(ZOR.startswith(b.sorunlu_metin[:-2]))
-        self.assertEqual(b.guven, 0.7)  # Ateşman kademesi 5 kademe üstünde: üst sınır
-        # açıklamada puan, düzey, cümle uzunluğu, kitap ortalaması ve en uzun kelimeler bulunur
-        for parca in ("Ateşman okunabilirlik puanı -82,2", "lisans üstü düzeyine", "5. sınıf kitabının düzeyinin "
-                      "(5-6. sınıf) 5 kademe üstünde", "Bezirci-Yılmaz puanı 122,7 (akademik)",
-                      "Ortalama cümle uzunluğu 44,0 kelime (kitap ortalaması 5,4), kelime başına 4,14 hece"):
+        self.assertEqual(b.guven, 0.7)  # eşiğin ortancaya olan mesafesinden çok daha aşağıda: üst sınır
+        # açıklama referansa dayanır; Ateşman tablosu yalnızca bilgidir
+        for parca in (
+            "Bu paragraf, 5. sınıf kitaplarındaki paragrafların %90'ından daha zor (Ateşman puanı -82,2; "
+            "5. sınıf referansında %10 sınırı 74,0, ortanca 90,0)",
+            "referanstaki hiçbir sınıfın tipik aralığına girmiyor: 7. sınıf kitaplarındaki paragrafların da "
+            "%90'ından daha zor",
+            "Bezirci-Yılmaz puanı 122,7 (akademik); 5. sınıf referansının ortancası 110,0, %90 sınırı 126,0",
+            "Ortalama cümle uzunluğu 44,0 kelime (kitap ortalaması 5,4), kelime başına 4,14 hece",
+            "Ateşman tablosuna göre lisans üstü düzeyi (yalnızca bilgi)",
+        ):
             self.assertIn(parca, b.aciklama)
+        self.assertNotIn("kademe", b.aciklama)  # eski kademe kuralının dili kalmadı
         self.assertIn("En uzun cümle 44 kelime", b.oneri)
 
     def test_en_uzun_kelimeler_hece_sirasiyla(self):
@@ -327,19 +345,69 @@ class AnalizTest(unittest.TestCase):
         self.assertIn("«… okul yönetimlerinin velilerle düzenli görüşmeler gerçekleştirmesi.»", b.oneri)
         self.assertIn("«Ayrıca öğrencilerin evde yaptıkları çalışmaların düzenli …»", b.oneri)
 
-    def test_kademe_farki_siniri(self):
-        # 5. sınıf kitabı 5-6. sınıf düzeyindedir (kademe 1): 1 kademe üstü bulgu değil, 2 kademe üstü bulgu
-        self.assertEqual(self.sonuc([paragraf(ORTA_A)], sinif=5).bulgular, [])
-        b = self.sonuc([paragraf(ORTA_B)], sinif=5).bulgular
+    def test_esik_referansin_yuzde_10_dilimidir(self):
+        # ORTA_A (Ateşman 75,6) %10 sınırının (74) üstünde: bulgu yok; ORTA_B (68,8) altında: bulgu
+        self.assertEqual(self.sonuc([paragraf(ORTA_A)]).bulgular, [])
+        b = self.sonuc([paragraf(ORTA_B)]).bulgular
         self.assertEqual(len(b), 1)
-        self.assertIn("9-10. sınıf düzeyine denk geliyor", b[0].aciklama)
-        self.assertIn("2 kademe üstünde", b[0].aciklama)
-        self.assertEqual(b[0].guven, 0.4)  # 2 kademe: en düşük güven
+        # 68,8 hiçbir sınıfın %10 sınırının altında değil: 6. sınıf aralığında (54-86), ortancası (70) en yakın
+        self.assertIn("6. sınıf kitaplarının tipik düzeyinde (o sınıfın paragraflarının %10-%90 aralığı "
+                      "54,0-86,0 içinde)", b[0].aciklama)
+        # güven: eşiğin altındaki mesafe / (ortanca - eşik) = (74 - 68,77) / 16
+        self.assertAlmostEqual(b[0].guven, 0.4 + 0.3 * (74 - 68.77) / 16, places=2)
 
-    def test_sinif_arttikca_esik_kayar(self):
-        # aynı ORTA_B metni 7. sınıf kitabında (7-8. sınıf düzeyi) yalnızca 1 kademe üstündedir
+    def test_her_sinif_kendi_referansini_kullanir(self):
+        # aynı ORTA_B paragrafı 6. sınıfta (%10 sınırı 54) ve 7. sınıfta (34) bulgu değildir
+        self.assertEqual(self.sonuc([paragraf(ORTA_B)], sinif=6).bulgular, [])
         self.assertEqual(self.sonuc([paragraf(ORTA_B)], sinif=7).bulgular, [])
-        self.assertEqual(len(self.sonuc([paragraf(ZOR)], sinif=12).bulgular), 1)  # lisans üstü: 2 kademe üstü
+        b = self.sonuc([paragraf(ZOR)], sinif=7).bulgular
+        self.assertEqual(len(b), 1)
+        self.assertIn("7. sınıf referansında %10 sınırı 34,0, ortanca 50,0", b[0].aciklama)
+
+    def test_ara_sinif_referansi_ara_degerdir(self):
+        s = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)], sinif=6)
+        r = s.ozet["referans"]
+        self.assertEqual((r["yontem"], r["sinif"], r["ara_deger"], r["kaynak_siniflar"]),
+                         ("sinif_referansi", 6, True, [5, 7]))
+        self.assertAlmostEqual(r["p10"], 54.0)
+        self.assertAlmostEqual(r["ortanca"], 70.0)
+
+    def test_referansi_olmayan_sinifta_kitap_ici_esik(self):
+        # referans yalnızca 5-7. sınıfları kapsar; 3. sınıf kitabı için kitabın kendi %10 dilimi kullanılır
+        s = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)], sinif=3)
+        self.assertEqual([b.paragraf for b in s.bulgular], [2])
+        aciklama = s.bulgular[0].aciklama
+        self.assertIn("Bu paragraf, bu kitaptaki paragrafların %90'ından daha zor", aciklama)
+        self.assertIn("3. sınıf için referans tablosu yok (referans 5-7. sınıf kitaplarını kapsıyor); "
+                      "bu yüzden kitabın kendi dağılımı kullanıldı.", aciklama)
+        self.assertNotIn("Bezirci-Yılmaz puanı 122,7 (akademik);", aciklama)  # referans karşılaştırması yok
+        self.assertEqual(s.ozet["referans"]["yontem"], "kitap_ici")
+        # iki birimin puanları -82,19 ve 114,04: kitabın %10 sınırı -82,19 + 196,23 × 0,1 = -62,57
+        self.assertAlmostEqual(s.ozet["referans"]["p10"], -62.57, places=1)
+
+    def test_referans_hic_yoksa_kitap_ici(self):
+        s = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)], referans=Referans())
+        self.assertEqual([b.paragraf for b in s.bulgular], [2])
+        self.assertIn("referans tablosu bulunamadı", s.bulgular[0].aciklama)
+
+    def test_kitap_ici_tek_birimde_bulgu_olmaz(self):
+        # tek birimin puanı kendi %10 sınırına eşittir: "altında" değil
+        self.assertEqual(self.sonuc([paragraf(ZOR)], sinif=3).bulgular, [])
+
+    def test_varsayilan_referans_depodaki_dosyadan_yuklenir(self):
+        a = OkunabilirlikAnalizoru(5)
+        self.assertEqual(a.referans.sinif(5).kitaplar, ["fen5.pdf", "sosyalbilgiler5.pdf"])
+        self.assertEqual(a.referans.kapsam, (3, 9))
+
+    def test_eski_olcum_surumlu_referans_uyari_verir(self):
+        with unittest.mock.patch("dkds.analiz.okunabilirlik.referans_yukle", return_value=Referans(olcum_surumu=0)):
+            with self.assertWarnsRegex(UserWarning, "ölçüm sürümü 0"):
+                OkunabilirlikAnalizoru(5)
+
+    def test_referans_dosyasi_yoksa_bos_referans(self):
+        with unittest.mock.patch("dkds.analiz.okunabilirlik.referans_yukle", side_effect=FileNotFoundError):
+            a = OkunabilirlikAnalizoru(5)
+        self.assertIsNone(a.referans.kapsam)
 
     def test_ozet(self):
         ozet = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).ozet
@@ -353,6 +421,15 @@ class AnalizTest(unittest.TestCase):
         self.assertEqual([p["paragraflar"] for p in en_zor], [[2], [1]])
         self.assertLess(en_zor[0]["atesman"], en_zor[1]["atesman"])
 
+    def test_ozet_referans(self):
+        ozet = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).ozet
+        r = ozet["referans"]
+        self.assertEqual((r["yontem"], r["sinif"], r["ara_deger"], r["kitaplar"], r["birim_sayisi"]),
+                         ("sinif_referansi", 5, False, ["ref5.pdf"], 21))
+        self.assertEqual((r["p10"], r["ortanca"]), (74.0, 90.0))
+        # kitabın ortanca birim puanı 15,92; referans ortancası 90
+        self.assertAlmostEqual(r["medyan_farki"], (114.037 - 82.193) / 2 - 90, places=2)
+
     def test_ozet_isaretlenen_oran_ve_dagilim(self):
         ozet = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).ozet
         self.assertEqual((ozet["isaretlenen_birim"], ozet["isaretlenen_oran"]), (1, 0.5))
@@ -361,8 +438,9 @@ class AnalizTest(unittest.TestCase):
         self.assertAlmostEqual(d["ortalama"], (114.037 - 82.193) / 2, places=2)
         self.assertAlmostEqual(d["medyan"], d["ortalama"], places=6)
         self.assertAlmostEqual(d["std"], (114.037 + 82.193) / 2, places=2)
-        # medyan 15,9 -> lisans üstü (kademe 6), 5. sınıf kademesi 1: 5 kademe fark
-        self.assertEqual(ozet["medyan_kademe_farki"], 5)
+        # doğrusal ara değerli yüzdelik: -82,193 + 196,23 × 0,1 ve × 0,9
+        self.assertAlmostEqual(d["p10"], -62.57, places=1)
+        self.assertAlmostEqual(d["p90"], 94.42, places=1)
 
     def test_ozet_en_zor_paragraf_sayisi_sinirlidir(self):
         paragraflar = [paragraf(ZOR + f" Ek{n}.", no=n) for n in range(1, 16)]

@@ -24,11 +24,13 @@ from __future__ import annotations
 import math
 import re
 import statistics
+import warnings
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from ..models import Bulgu, Konum, Paragraf
+from .referans import Referans, SinifReferansi, referans_yukle, yuzdelik
 
 # --------------------------------------------------------------------------- hece ve kelime
 
@@ -221,13 +223,6 @@ def atesman_duzeyi(puan: float) -> str:
     return ATESMAN_DUZEYLERI[atesman_kademesi(puan)][1]
 
 
-def sinif_kademesi(sinif: int) -> int:
-    """Bir sınıfın (1-12) Ateşman tablosundaki kademesi: 5. sınıf → 1 (5-6. sınıf)."""
-    if not 1 <= sinif <= 12:
-        raise ValueError("sınıf 1 ile 12 arasında olmalı")
-    return 0 if sinif <= 4 else (sinif - 3) // 2
-
-
 def bezirci_yilmaz_duzeyi(puan: float) -> str:
     """Makalenin yorumu: puan sınıf düzeyidir; 7,34 → 7-8. sınıf (1-8 ilköğretim, 9-12 lise,
     12-16 lisans, 16 ve üstü akademik)."""
@@ -258,8 +253,6 @@ EN_AZ_KELIME = 40
 # 8+ kelimelik diziler atlanıyordu; kısa parçalar (fen5 s.86, sosyal5 s.115) birleşip en zor
 # paragraf listesini doldurduğu için sınır, sınıflandırıcının etiket sınırına (4 kelime) çekildi.
 ISARETSIZ_EN_AZ_KELIME = 4
-# Paragrafın Ateşman kademesi kitabın sınıfının kademesinden en az bu kadar yüksekse bulgu üretilir.
-KADEME_FARKI = 2
 EN_ZOR_PARAGRAF_SAYISI = 10
 EN_UZUN_KELIME_SAYISI = 4
 SORUNLU_METIN_EN_FAZLA = 240
@@ -415,12 +408,43 @@ def _birim(sayfa_no: int, grup: list[Paragraf]) -> Birim:
     )
 
 
-class OkunabilirlikAnalizoru:
-    """Gövde paragraflarının okunabilirliğini kitabın sınıf düzeyiyle karşılaştırır."""
+@dataclass
+class Esik:
+    """Bulgu eşiği ve dayanağı: Ateşman puanı p10'un altındaki birimler bulgu alır."""
 
-    def __init__(self, sinif: int) -> None:
+    yontem: str  # "sinif_referansi" ya da "kitap_ici"
+    p10: float
+    ortanca: float
+    sinif_referansi: SinifReferansi | None = None
+
+
+def _varsayilan_referans() -> Referans:
+    try:
+        referans = referans_yukle()
+    except FileNotFoundError:
+        return Referans()  # tablo yok: kitabın kendi dağılımı kullanılır
+    if referans.olcum_surumu != OLCUM_SURUMU:
+        warnings.warn(
+            f"referans.json ölçüm sürümü {referans.olcum_surumu}, kod sürümü {OLCUM_SURUMU}: referans eski "
+            "ölçümle üretilmiş; python -m dkds referans ile yeniden üretin.", stacklevel=3)
+    return referans
+
+
+class OkunabilirlikAnalizoru:
+    """Gövde paragraflarının okunabilirliğini kitabın sınıfındaki referans dağılımla karşılaştırır.
+
+    Kural: bir birimin Ateşman puanı, kitabın sınıfındaki referans dağılımın %10 diliminin altındaysa
+    (yani o sınıf kitaplarındaki paragrafların %90'ından daha zorsa) bulgu üretilir. Referans
+    tablosunda olmayan sınıflarda (ör. 1-2, 10-12) kitabın kendi %10 dilimi kullanılır ve açıklama
+    bunu söyler. Ateşman'ın puan → sınıf tablosu yalnızca bilgi olarak gösterilir: Türkçe ders
+    kitabı metnini sistematik olarak çok zor gösterdiği için karar vermekte kullanılmaz.
+    """
+
+    def __init__(self, sinif: int, referans: Referans | None = None) -> None:
+        if not 1 <= sinif <= 12:
+            raise ValueError("sınıf 1 ile 12 arasında olmalı")
         self.sinif = sinif
-        self.kitap_kademesi = sinif_kademesi(sinif)  # geçersiz sınıf burada ValueError verir
+        self.referans = referans if referans is not None else _varsayilan_referans()
 
     # ------------------------------------------------------------------ değerlendirme birimleri
 
@@ -432,6 +456,16 @@ class OkunabilirlikAnalizoru:
     def analiz_et(self, paragraflar: Iterable[Paragraf]) -> list[Bulgu]:
         return self.incele(paragraflar).bulgular
 
+    def esik_belirle(self, birimler: list[Birim]) -> Esik | None:
+        """Sınıfın referansı varsa onun %10 dilimi, yoksa kitabın kendi %10 dilimi."""
+        referans = self.referans.sinif(self.sinif)
+        if referans:
+            return Esik("sinif_referansi", referans.atesman.p10, referans.atesman.ortanca, referans)
+        if not birimler:
+            return None
+        puanlar = [b.metrikler.atesman for b in birimler]
+        return Esik("kitap_ici", yuzdelik(puanlar, 0.1), yuzdelik(puanlar, 0.5))
+
     def incele(self, paragraflar: Iterable[Paragraf]) -> OkunabilirlikSonucu:
         birimler, atlanan = self.birimleri_olustur(paragraflar)
         birimler = [b for b in birimler if b.metrikler.hazir]
@@ -439,22 +473,40 @@ class OkunabilirlikAnalizoru:
         for b in birimler:
             toplam = toplam + b.metrikler
 
+        esik = self.esik_belirle(birimler)
         kitap_oks = toplam.ortalama_cumle_uzunlugu if toplam.hazir else 0.0
-        bulgular = []
-        for b in birimler:
-            fark = atesman_kademesi(b.metrikler.atesman) - self.kitap_kademesi
-            if fark >= KADEME_FARKI:
-                bulgular.append(self._bulgu(b, fark, kitap_oks))
-        ozet = self._ozet(birimler, toplam, atlanan)
+        bulgular = [self._bulgu(b, esik, kitap_oks) for b in birimler if esik and b.metrikler.atesman < esik.p10]
+        ozet = self._ozet(birimler, toplam, atlanan, esik)
         ozet["isaretlenen_birim"] = len(bulgular)
         ozet["isaretlenen_oran"] = len(bulgular) / len(birimler) if birimler else 0.0
         return OkunabilirlikSonucu(bulgular=bulgular, ozet=ozet)
 
-    def _bulgu(self, b: Birim, fark: int, kitap_oks: float) -> Bulgu:
+    def _referans_ifadesi(self, puan: float, esik: Esik) -> str:
+        """Bulgunun referansa dayalı ilk cümlesi."""
+        if esik.yontem == "kitap_ici":
+            kapsam = self.referans.kapsam
+            kapsam_metni = (f"referans {kapsam[0]}-{kapsam[1]}. sınıf kitaplarını kapsıyor" if kapsam
+                            else "referans tablosu bulunamadı")
+            return (f"Bu paragraf, bu kitaptaki paragrafların %90'ından daha zor (Ateşman puanı {sayi_yaz(puan)}; "
+                    f"kitabın %10 sınırı {sayi_yaz(esik.p10)}, ortancası {sayi_yaz(esik.ortanca)}). "
+                    f"{self.sinif}. sınıf için referans tablosu yok ({kapsam_metni}); bu yüzden kitabın kendi "
+                    "dağılımı kullanıldı.")
+        sinif, araliga = self.referans.tipik_duzey(puan)
+        if araliga:
+            r = self.referans.sinif(sinif)
+            tipik = (f"{sinif}. sınıf kitaplarının tipik düzeyinde (o sınıfın paragraflarının %10-%90 aralığı "
+                     f"{sayi_yaz(r.atesman.p10)}-{sayi_yaz(r.atesman.p90)} içinde)")
+        else:
+            tipik = (f"referanstaki hiçbir sınıfın tipik aralığına girmiyor: {sinif}. sınıf kitaplarındaki "
+                     "paragrafların da %90'ından daha zor")
+        return (f"Bu paragraf, {self.sinif}. sınıf kitaplarındaki paragrafların %90'ından daha zor "
+                f"(Ateşman puanı {sayi_yaz(puan)}; {self.sinif}. sınıf referansında %10 sınırı "
+                f"{sayi_yaz(esik.p10)}, ortanca {sayi_yaz(esik.ortanca)}); {tipik}.")
+
+    def _bulgu(self, b: Birim, esik: Esik, kitap_oks: float) -> Bulgu:
         m = b.metrikler
         puan = m.atesman
         yod = m.bezirci_yilmaz
-        sinif_adi = ATESMAN_DUZEYLERI[self.kitap_kademesi][1]
 
         kelime_heceleri: dict[str, int] = {}
         for k in kelimeleri_bul(b.metin):
@@ -462,22 +514,30 @@ class OkunabilirlikAnalizoru:
         en_uzunlar = sorted(kelime_heceleri.items(), key=lambda kv: (-kv[1], -len(kv[0]), kv[0]))
         en_uzunlar = ", ".join(f"{k} ({h} hece)" for k, h in en_uzunlar[:EN_UZUN_KELIME_SAYISI])
 
+        yod_metni = f"Bezirci-Yılmaz puanı {sayi_yaz(yod)} ({bezirci_yilmaz_duzeyi(yod)})"
+        if esik.sinif_referansi:
+            by = esik.sinif_referansi.bezirci_yilmaz
+            yod_metni += (f"; {self.sinif}. sınıf referansının ortancası {sayi_yaz(by.ortanca)}, "
+                          f"%90 sınırı {sayi_yaz(by.p90)}")
         aciklama = (
-            f"Ateşman okunabilirlik puanı {sayi_yaz(puan)}: {atesman_duzeyi(puan)} düzeyine denk geliyor; "
-            f"{self.sinif}. sınıf kitabının düzeyinin ({sinif_adi}) {fark} kademe üstünde. "
-            f"Bezirci-Yılmaz puanı {sayi_yaz(yod)} ({bezirci_yilmaz_duzeyi(yod)}). "
+            f"{self._referans_ifadesi(puan, esik)} {yod_metni}. "
             f"Ortalama cümle uzunluğu {sayi_yaz(m.ortalama_cumle_uzunlugu)} kelime "
             f"(kitap ortalaması {sayi_yaz(kitap_oks)}), kelime başına {sayi_yaz(m.hece_kelime, 2)} hece. "
-            f"En uzun kelimeler: {en_uzunlar}."
+            f"En uzun kelimeler: {en_uzunlar}. "
+            f"Ateşman tablosuna göre {atesman_duzeyi(puan)} düzeyi (yalnızca bilgi)."
         )
         if len(b.paragraflar) > 1:
             aciklama += (f" {len(b.paragraflar)} kısa gövde paragrafı birleştirilerek değerlendirildi "
                          f"(paragraf {b.paragraflar[0]}–{b.paragraflar[-1]}).")
 
+        # Güven: puan eşiğin ne kadar altındaysa o kadar yüksek (eşik ile ortanca arasındaki
+        # mesafe kadar aşağıdayken üst sınır 0,7)
+        genislik = max(esik.ortanca - esik.p10, 1e-9)
+        guven = 0.4 + 0.3 * min(1.0, (esik.p10 - puan) / genislik)
         return Bulgu(
             sayfa=b.sayfa, paragraf=b.paragraflar[0], kriter=KRITER,
             sorunlu_metin=_kisalt(b.metin, 40) if len(b.metin) > SORUNLU_METIN_EN_FAZLA else b.metin,
-            aciklama=aciklama, guven=min(0.7, 0.4 + 0.1 * (fark - 2)),
+            aciklama=aciklama, guven=guven,
             oneri=self._oneri(b), konum=b.konum, tur="sinif_ustu",
         )
 
@@ -495,7 +555,7 @@ class OkunabilirlikAnalizoru:
 
     # ------------------------------------------------------------------ kitap özeti
 
-    def _ozet(self, birimler: list[Birim], toplam: Metrikler, atlanan: Counter) -> dict:
+    def _ozet(self, birimler: list[Birim], toplam: Metrikler, atlanan: Counter, esik: Esik | None) -> dict:
         ozet: dict = {"sinif": self.sinif, "birim_sayisi": len(birimler),
                       "atlanan": dict(atlanan), "kelime": toplam.kelime, "cumle": toplam.cumle}
         if not toplam.hazir:
@@ -508,14 +568,20 @@ class OkunabilirlikAnalizoru:
             hece_kelime=toplam.hece_kelime,
             atesman={"puan": atesman, "duzey": atesman_duzeyi(atesman)},
             bezirci_yilmaz={"puan": yod, "duzey": bezirci_yilmaz_duzeyi(yod)},
-            # Birim başına Ateşman puanlarının dağılımı: sabit eşiğin kitap için ayırt edici
-            # olup olmadığını görmek ve ileride sınıf başına referans dağılım çıkarmak için.
+            # Birim başına Ateşman dağılımı: kitabı referansla ve diğer kitaplarla karşılaştırmak için
             atesman_dagilimi={
                 "ortalama": statistics.fmean(puanlar), "std": statistics.pstdev(puanlar), "medyan": medyan,
-                "p10": puanlar[int(len(puanlar) * 0.1)], "p90": puanlar[min(len(puanlar) - 1, int(len(puanlar) * 0.9))],
+                "p10": yuzdelik(puanlar, 0.1), "p90": yuzdelik(puanlar, 0.9),
             },
-            medyan_kademe_farki=atesman_kademesi(medyan) - self.kitap_kademesi,
         )
+        if esik:
+            referans = {"yontem": esik.yontem, "sinif": self.sinif, "p10": esik.p10, "ortanca": esik.ortanca,
+                        "medyan_farki": medyan - esik.ortanca}
+            if esik.sinif_referansi:
+                r = esik.sinif_referansi
+                referans.update(ara_deger=r.ara_deger, kitaplar=r.kitaplar, birim_sayisi=r.birim_sayisi,
+                                kaynak_siniflar=r.kaynak_siniflar)
+            ozet["referans"] = referans
         en_zorlar = sorted(birimler, key=lambda b: b.metrikler.atesman)[:EN_ZOR_PARAGRAF_SAYISI]
         ozet["en_zor_paragraflar"] = [
             {

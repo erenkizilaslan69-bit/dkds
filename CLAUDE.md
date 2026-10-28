@@ -90,25 +90,62 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 
 - Bezirci-Yılmaz formülünde karekök TÜM çarpımın üzerindedir: √(OKS × (H3×0,84 + H4×1,5 + H5×3,5 +
   H6×26,25)). Orijinal makaleden (Bezirci ve Yılmaz 2010, DEÜ Fen ve Müh. Dergisi 12(3), Çizelge 8-9)
-  doğrulandı; `tests/test_okunabilirlik.py` makaledeki 9 değeri yeniden üretir. Makale puanı doğrudan
-  sınıf düzeyi sayar (7,34 → 7-8. sınıf; 12-16 lisans, 16+ akademik).
-- Kural: paragrafın Ateşman kademesi kitabın sınıfının kademesinden ≥2 üstteyse bulgu (5. sınıf =
-  5-6. sınıf düzeyi → puan < 70). Birim: gövde paragrafı; 40 kelimeden kısa olanlar aynı sayfadaki
-  komşu gövde paragraflarıyla birleştirilir.
-- **Sabit kademe eşiği bu kitaplarda ayırt edici değil:** ortanca birim Ateşman puanı fen5'te 54,9,
-  sosyal5'te 47,2 (11-12. sınıf / lisans düzeyi); kural birimlerin %88'ini / %93'ünü işaretliyor
-  (≥4 kademe olsa bile %33 / %60). İki bağımsız 5. sınıf kitabı birbirine yakın: genel Ateşman 57,2 /
-  55,6, Bezirci-Yılmaz 12,9 / 13,3, cümle 9,7 / 9,6 kelime, kelime başına 2,90 / 2,94 hece. Ateşman'ın
-  tablosu Türkçe ders kitabı metnini sistematik olarak çok zor gösteriyor → yukarıdaki "referans puan
-  dağılımı" planı gerekli (iki kitabın birleşik 403 biriminde ort. 50,6, σ 20,3; ort−σ = 30,3 altı %7,4).
+  doğrulandı; `tests/test_okunabilirlik.py` makaledeki 9 değeri yeniden üretir.
+- **Kural (referans tabanlı):** birimin Ateşman puanı, kitabın sınıfındaki referans dağılımın %10
+  diliminin altındaysa bulgu (`dkds/analiz/referans.json`: sınıf → ortanca, %10, %90; Ateşman ve
+  Bezirci-Yılmaz). Referansta olmayan sınıflarda (1-2, 10-12) kitabın kendi %10 dilimi kullanılır ve
+  açıklama bunu söyler. Ateşman'ın puan → sınıf tablosu yalnızca bilgi olarak gösterilir.
+  Birim: gövde paragrafı; 40 kelimeden kısalar aynı sayfadaki komşu gövde paragraflarıyla birleştirilir.
+- **Neden referans:** Ateşman tablosu Türkçe ders kitabı metnini sistematik olarak çok zor gösterir.
+  İlk sürümdeki sabit kural ("kitabın sınıfının ≥2 kademe üstü") fen5'te birimlerin %88'ini, sosyal5'te
+  %93'ünü işaretliyordu (ortanca birim puanı 54,9 / 47,2 = "11-12. sınıf / lisans").
+- **Referans kitapları** (`python -m dkds referans -k SINIF PDF ...` ile üretilir): fen3 (160 sayfa,
+  serinin 1. kitabı), fen5 (152) ve sosyalbilgiler5 (154) → 5. sınıf (401 birim), fen7 (153 sayfa,
+  1. kitap; sözlük ve kaynakçayla bittiği için eksik değil), biyoloji9 (184). Ara sınıflar (4, 6, 8)
+  komşulardan doğrusal ara değerdir. Birim bazında Ateşman (düşük = zor), ölçüm sürümü 2:
+
+  | sınıf | birim | %10 | ortanca | %90 | B-Y ortanca |
+  |---|---|---|---|---|---|
+  | 3 | 155 | 29,5 | 52,5 | 80,8 | 11,8 |
+  | 4 | ara | 30,6 | 51,2 | 74,5 | 13,2 |
+  | 5 | 401 | 31,7 | 49,9 | 68,3 | 14,6 |
+  | 6 | ara | 29,4 | 47,6 | 65,4 | 15,3 |
+  | 7 | 216 | 27,1 | 45,3 | 62,6 | 16,0 |
+  | 8 | ara | 25,8 | 44,5 | 62,5 | 17,4 |
+  | 9 | 362 | 24,5 | 43,8 | 62,4 | 18,9 |
+
+- **Sınıf eğilimi gerçek ama zayıf ve eşit adımlı değil** (ölçüm sürümü 1 birimleriyle, bootstrap
+  %95 aralığı): fen3→fen5 ortanca farkı +2,3 [-3,0; +5,7] gürültü, fen5→fen7 -9,6 [-12,5; -6,7] gerçek,
+  fen7→biyoloji9 -1,5 [-4,0; +1,3] gürültü, fen3→biyoloji9 -8,9 gerçek; Spearman (n=878) Ateşman -0,26,
+  Bezirci-Yılmaz +0,40. **Ders etkisi bir sınıf adımı kadar büyük:** fen5→sosyal5 -7,7 [-11,0; -5,2].
+  Bu yüzden 5. sınıf referansı iki dersi birleştirir; diğer sınıflar tek kitaptan (fen/biyoloji) gelir.
+- **Referansın duyarlılığı** (işaretlenen birim oranı; * = kitabın kendi sınıfı, beklenen ≈ %10):
+
+  | kitap | 3. sınıf ref. | 5. sınıf ref. | 7. sınıf ref. | 9. sınıf ref. |
+  |---|---|---|---|---|
+  | fen3 | %10,3* | %12,3 | %8,4 | %6,5 |
+  | fen5 | %4,2 | %4,9* | %3,5 | %2,1 |
+  | sosyalbilgiler5 | %7,4 | %12,8* | %6,6 | %5,1 |
+  | fen7 | %14,4 | %16,7 | %10,2* | %6,5 |
+  | biyoloji9 | %16,9 | %19,9 | %14,1 | %10,2* |
+
+  Üst sınıf kitapları 5. sınıf referansında daha çok işaretlenir (%16,7 / %19,9) ama ayrım zayıf ve
+  ders etkisiyle karışık (sosyal5 %12,8 ≈ fen3 %12,3). Çok sayıda kitap ve ders eklenince iyileşir.
+- **Referans ölçüme bağlıdır:** cümle ayırma, birim oluşturma, atlama kuralları ya da formüller
+  değişirse `okunabilirlik.OLCUM_SURUMU` artırılır ve referans yeniden üretilir
+  (`tests/test_referans_dosyasi.py` uyuşmazlığı yakalar, analizör uyarı verir). Üretim komutu:
+  `python -m dkds referans -k 3 veri\fen3.pdf -k 5 veri\fen5.pdf -k 5 veri\sosyalbilgiler5.pdf
+  -k 7 veri\fen7.pdf -k 9 veri\biyoloji9.pdf`
 - Ölçüme girmeyenler: cümle sonu işareti olmayan paragraflar (kavram listesi, haber başlığı, tablo
-  hücresi, ifade listesi), sözlükçe paragrafları, sayfada 40 kelimelik gövde metni olmayan paragraflar.
-  Sayıdaki nokta ("4.000") cümle sonu sayılmaz. Şık işaretleri ("a.", "A)") cümleye katılmaz.
-- En zor 10 paragraf basılı sayfayla kontrol edildi: gerçek ve gerçekten zor düzyazı (sosyal5'te haber
-  alıntıları s.106, 115, 128; uzun görev cümleleri s.125; fen5 s.17 mühendislik tasarım döngüsünü
-  anlatan kutu metni; s.13 güvenlik sembolü kartları). Bilinen sınırlama: kitabın yöntem/tanıtım
-  metinleri (s.17 gibi) ile öğrencinin okuması beklenen metinler ayırt edilmiyor; tablo/kart
-  düzenindeki cümleler (s.13) okuma sırasına göre birleşebiliyor.
+  hücresi), sözlükçe paragrafları, form/etkinlik künyeleri ("Adı : … Amacı : … Süre :"; ≥3 alan),
+  sayfada 40 kelimelik gövde metni olmayan paragraflar. Sayıdaki nokta ("4.000") cümle sonu
+  sayılmaz. Şık işaretleri ("a.", "A)") cümleye katılmaz.
+- fen5'te %5, sosyal5'te %13 birim işaretlenir. En zor 10 paragraf basılı sayfayla kontrol edildi:
+  gerçek ve gerçekten zor düzyazı (sosyal5'te haber alıntıları s.106, 115, 128; uzun görev cümleleri
+  s.125; fen5 s.17 mühendislik tasarım döngüsü kutu metni; s.13 güvenlik sembolü kartları).
+- Bilinen sınırlamalar: referans kitap sayısı az (sınıf başına 1-2) ve dersler karışık; kitabın
+  yöntem/tanıtım metinleri (s.17 gibi) ile öğrencinin okuması beklenen metinler ayırt edilmiyor;
+  tablo/kart düzenindeki cümleler (s.13) okuma sırasına göre birleşebiliyor.
 
 ## Yazım analizörü notları
 
