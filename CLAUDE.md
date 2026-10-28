@@ -143,6 +143,22 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 - fen5'te %5, sosyal5'te %13 birim işaretlenir. En zor 10 paragraf basılı sayfayla kontrol edildi:
   gerçek ve gerçekten zor düzyazı (sosyal5'te haber alıntıları s.106, 115, 128; uzun görev cümleleri
   s.125; fen5 s.17 mühendislik tasarım döngüsü kutu metni; s.13 güvenlik sembolü kartları).
+- **Bağımsız doğrulama: turkce5.pdf** (5. sınıf Türkçe, 178 sayfa; referansta YOK, referans değiştirilmeden
+  `--sinif 5`, 28.10.2026): 335 birimde 28 işaretlendi = **%8,4** (beklenen ≈ %10; n=335'te standart
+  hata ≈ %1,6, yani tutarlı). Kitap ortancası 54,5, referansın 5. sınıf ortancasından (49,9) +4,6 puan
+  kolay; yine de oran ≈ %10 çıktı. fen5/sosyal5 oranları (%5 / %13) referansın içindeki kitaplar olduğu
+  için bağımsız sınav sayılmaz, bu ilk gerçek sınav. Türkçe dersi dil kitabı olduğundan ders etkisi
+  (fen5→sosyal5 farkı) burada da beklenir; oranın tutması şans da olabilir (tek kitap).
+  En zor 10'dan 4'ü basılı sayfayla kontrol edildi: **s.122 ve s.68 çıkarım sorunu** (basılı metin
+  normal; döndürülmüş/eğik "Bu temada" kutularında satırlar üst üste binip metin tekrarlı ve karışık
+  geliyor, cümle 60 kelime sayılıyor → Ateşman -129 / -42); **s.98 form-örnek metni** ("Kişiler / Yer /
+  Zaman / Olaylar" alanları etiketli doldurulmuş örnek, virgüllü tek cümle; s.88'deki 3. sıra aynı
+  içerik; kısmen gerçek ama ders metni değil, öğrenci örneği); **s.35 gerçek**: kitabın "uzun cümleyi
+  böl" etkinliğindeki bilerek uzun örnek cümle. Kalan 6'sı kontrol edilmedi. Yani en zor 10'un en az 2'si
+  (en kötü ikisi dahil) çıkarım artığı; 28 bulgunun kaçının artık olduğu ölçülmedi.
+  Sonuç: oran açısından referans bu kitapta tutuyor, ama sıralamanın tepesini döndürülmüş kutulardaki
+  satır çakışmaları dolduruyor. Bir sonraki iş: `duzen.py`'de üst üste binen/tekrarlı satırlı blokları
+  (aynı metnin parçaları tekrarlanıyor) tespit edip ölçümden çıkarmak (sosyal5 s.142 ile aynı sorun).
 - Bilinen sınırlamalar: referans kitap sayısı az (sınıf başına 1-2) ve dersler karışık; kitabın
   yöntem/tanıtım metinleri (s.17 gibi) ile öğrencinin okuması beklenen metinler ayırt edilmiyor;
   tablo/kart düzenindeki cümleler (s.13) okuma sırasına göre birleşebiliyor.
