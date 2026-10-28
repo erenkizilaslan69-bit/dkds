@@ -63,6 +63,7 @@ Kurallar iki kitapta da denenmeli; tek kitaba göre eşik ayarlanmamalı.
 - Bazı başlıklarda İ harfi metin katmanında I olarak kodlanmış ("ÖĞRENELIM", "TÜRKIYE");
   basılı halde doğru. Yazım analizöründe yanlış alarm üretebilir.
 - s.142'de aynı cümleler iki farklı yazımla iki kez çıkıyor (gizli/üst üste metin katmanı).
+  `duzen.tekrarli_metni_temizle` büyük kısmını temizliyor, yazımı farklı parçalı kutular kısmen kalıyor.
 - Madde imi az kullanılmış; liste türünün düşük çıkması (%1) kural hatası değil.
 - s.3–4 (İstiklal Marşı, Gençliğe Hitabe) eski Türkçe yazı tipi: ş, ı, ğ, İ, Ş harfleri Unicode'a
   eşlenmemiş kodlarla saklanıyor (ú→ş, Õ→ı, ÷→ğ, ø→İ, ù→Ş; büyük harfli kelimedeki ö→Ğ).
@@ -100,68 +101,94 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   İlk sürümdeki sabit kural ("kitabın sınıfının ≥2 kademe üstü") fen5'te birimlerin %88'ini, sosyal5'te
   %93'ünü işaretliyordu (ortanca birim puanı 54,9 / 47,2 = "11-12. sınıf / lisans").
 - **Referans kitapları** (`python -m dkds referans -k SINIF PDF ...` ile üretilir): fen3 (160 sayfa,
-  serinin 1. kitabı), fen5 (152) ve sosyalbilgiler5 (154) → 5. sınıf (401 birim), fen7 (153 sayfa,
+  serinin 1. kitabı), fen5 (152) ve sosyalbilgiler5 (154) → 5. sınıf (392 birim), fen7 (153 sayfa,
   1. kitap; sözlük ve kaynakçayla bittiği için eksik değil), biyoloji9 (184). Ara sınıflar (4, 6, 8)
-  komşulardan doğrusal ara değerdir. Birim bazında Ateşman (düşük = zor), ölçüm sürümü 2:
+  komşulardan doğrusal ara değerdir. Birim bazında Ateşman (düşük = zor), ölçüm sürümü 3:
 
   | sınıf | birim | %10 | ortanca | %90 | B-Y ortanca |
   |---|---|---|---|---|---|
-  | 3 | 155 | 29,5 | 52,5 | 80,8 | 11,8 |
-  | 4 | ara | 30,6 | 51,2 | 74,5 | 13,2 |
-  | 5 | 401 | 31,7 | 49,9 | 68,3 | 14,6 |
-  | 6 | ara | 29,4 | 47,6 | 65,4 | 15,3 |
-  | 7 | 216 | 27,1 | 45,3 | 62,6 | 16,0 |
-  | 8 | ara | 25,8 | 44,5 | 62,5 | 17,4 |
-  | 9 | 362 | 24,5 | 43,8 | 62,4 | 18,9 |
+  | 3 | 133 | 38,3 | 56,1 | 87,1 | 11,2 |
+  | 4 | ara | 35,2 | 52,8 | 77,0 | 13,0 |
+  | 5 | 392 | 32,1 | 49,5 | 66,9 | 14,7 |
+  | 6 | ara | 29,9 | 47,4 | 64,8 | 15,3 |
+  | 7 | 212 | 27,6 | 45,4 | 62,8 | 15,9 |
+  | 8 | ara | 27,1 | 44,8 | 62,7 | 17,3 |
+  | 9 | 348 | 26,5 | 44,3 | 62,5 | 18,7 |
 
-- **Sınıf eğilimi gerçek ama zayıf ve eşit adımlı değil** (ölçüm sürümü 1 birimleriyle, bootstrap
-  %95 aralığı): fen3→fen5 ortanca farkı +2,3 [-3,0; +5,7] gürültü, fen5→fen7 -9,6 [-12,5; -6,7] gerçek,
-  fen7→biyoloji9 -1,5 [-4,0; +1,3] gürültü, fen3→biyoloji9 -8,9 gerçek; Spearman (n=878) Ateşman -0,26,
-  Bezirci-Yılmaz +0,40. **Ders etkisi bir sınıf adımı kadar büyük:** fen5→sosyal5 -7,7 [-11,0; -5,2].
-  Bu yüzden 5. sınıf referansı iki dersi birleştirir; diğer sınıflar tek kitaptan (fen/biyoloji) gelir.
-- **Referansın duyarlılığı** (işaretlenen birim oranı; * = kitabın kendi sınıfı, beklenen ≈ %10):
+- **Sınıf eğilimi gerçek ama zayıf ve eşit adımlı değil** (ölçüm sürümü 3, bootstrap %95 aralığı):
+  fen3→fen5 Ateşman ortanca farkı -1,2 [-6,3; +2,7] gürültü (B-Y +1,5 gerçek), fen5→fen7 -9,5 [-12,2; -6,5]
+  gerçek, fen7→biyoloji9 -1,1 [-3,5; +1,6] gürültü (B-Y +2,8 gerçek), fen3→biyoloji9 -11,8 gerçek;
+  Spearman (n=836) Ateşman -0,30, Bezirci-Yılmaz +0,44. **Ders etkisi bir sınıf adımı kadar büyük:**
+  fen5→sosyal5 -7,7 [-10,7; -5,0]. Bu yüzden 5. sınıf referansı iki dersi birleştirir; diğer sınıflar
+  tek kitaptan (fen/biyoloji) gelir. (Kopya metin temizliği öncesi, sürüm 1'de Spearman -0,26 / +0,40 idi.)
+- **Referansın duyarlılığı** (işaretlenen birim oranı; * = kitabın kendi sınıfı; beklenen ≈ %10, turkce5
+  referansta yok):
 
   | kitap | 3. sınıf ref. | 5. sınıf ref. | 7. sınıf ref. | 9. sınıf ref. |
   |---|---|---|---|---|
-  | fen3 | %10,3* | %12,3 | %8,4 | %6,5 |
-  | fen5 | %4,2 | %4,9* | %3,5 | %2,1 |
-  | sosyalbilgiler5 | %7,4 | %12,8* | %6,6 | %5,1 |
-  | fen7 | %14,4 | %16,7 | %10,2* | %6,5 |
-  | biyoloji9 | %16,9 | %19,9 | %14,1 | %10,2* |
+  | fen3 | %10,5* | %6,0 | %3,8 | %3,0 |
+  | fen5 | %14,7 | %6,3* | %4,2 | %2,8 |
+  | sosyalbilgiler5 | %26,5 | %12,4* | %6,0 | %5,6 |
+  | fen7 | %30,7 | %17,0 | %10,4* | %7,5 |
+  | biyoloji9 | %35,6 | %17,5 | %12,1 | %10,1* |
+  | turkce5 | %17,9 | %7,6 | %4,0 | %3,6 |
 
-  Üst sınıf kitapları 5. sınıf referansında daha çok işaretlenir (%16,7 / %19,9) ama ayrım zayıf ve
-  ders etkisiyle karışık (sosyal5 %12,8 ≈ fen3 %12,3). Çok sayıda kitap ve ders eklenince iyileşir.
+  Kopya metin temizliğinden sonra eğilim eskisinden net: 5. sınıf referansında fen3 %6,0 < fen5 %6,3 <
+  sosyal5 %12,4 < fen7 %17,0 ≈ biyoloji9 %17,5 (öncekinde fen3 %12,3 ile sosyal5 %12,8 aynıydı; fen3'ün
+  eski çıkarımında birimlerin %26'sı kopya metinli olduğu için yapay zordu). Ders etkisi sürüyor
+  (sosyal5 fen5'in iki katı). Çok sayıda kitap ve ders eklenince iyileşir.
 - **Referans ölçüme bağlıdır:** cümle ayırma, birim oluşturma, atlama kuralları ya da formüller
   değişirse `okunabilirlik.OLCUM_SURUMU` artırılır ve referans yeniden üretilir
-  (`tests/test_referans_dosyasi.py` uyuşmazlığı yakalar, analizör uyarı verir). Üretim komutu:
+  (`tests/test_referans_dosyasi.py` uyuşmazlığı yakalar, analizör uyarı verir). Metin çıkarma
+  değişikliği de ölçümü değiştirir (sürüm 3 kopya metin temizliğiyle birlikte geldi). Üretim komutu:
   `python -m dkds referans -k 3 veri\fen3.pdf -k 5 veri\fen5.pdf -k 5 veri\sosyalbilgiler5.pdf
   -k 7 veri\fen7.pdf -k 9 veri\biyoloji9.pdf`
+- **Kopya metin katmanı** (`duzen.tekrarli_metni_temizle`, çıkarımda çalışır): bazı sayfalarda aynı metin
+  PDF'e iki kez konmuş ve çıkarımda iç içe geçiyordu (turkce5 s.68/122 döndürülmüş "Bu temada" kutuları,
+  biyoloji9 s.18 zaman çizelgesi, sosyal5 s.142 şeması, fen3'ün birçok sayfası). Art arda gelen benzer
+  satırlar (≥ %85) tek satıra iner; başka bir bloğun aynı yerinde duran, metni ≥ %80 benzeyen blok
+  silinir; temizlenen sayfalar uyarıyla bildirilir. Paragraf sayısı: turkce5 3813→3362, biyoloji9
+  3822→3787, sosyal5 4182→4173, fen5 2164→2163, fen3/fen7 aynı (fen3'te satır içi temizlik: tekrarlı
+  birim 35→8). Yazımı farklı kopyalar (sosyal5 s.142 "Anadolu'ya"/"Anadoluya" gibi parçalı kutular)
+  kısmen kalır. Tek harfli döndürülmüş başlık parçaları ("s", "a", "ı"…) hâlâ ayrı etiket olarak çıkıyor.
+- **Çıkarım şüphesi kuralı** (okunabilirlik): birimin Ateşman puanı 0'ın altındaysa ya da metinde aynı
+  10 kelimelik dizi örtüşmeden iki kez geçiyorsa birim ölçüme (dağılım, oran, referans) girmez ve
+  okunabilirlik bulgusu yerine `tur="cikarim_sorunu"` ("olası metin çıkarma sorunu", güven 0,3) olarak
+  raporlanır; özet ve ekranda "Çıkarım şüphesi: N birim". Dizi uzunluğu 6 ve 8 kelimede gerçek şablon
+  cümleleri de yakalıyordu (turkce5 s.12 iki ödev maddesi, fen7 "…sistemini oluşturan yapı ve organların"
+  soruları), 10'a çıkarıldı. Kural kaba bir sezgisel: şüpheli birimlerin çoğu çıkarım hatası değil.
+  turkce5'te ayrılan 5 birim: 2 şablon tekrarı (s.65, 171), 2 form örneği (s.88/98 "Kişiler: Yer: Zaman:
+  Olaylar:"), 1 madde imli uzun cümle (s.68); sosyal5'te 4'ü s.54 harita simgeleri ("Ä!" tekrarı, yerinde
+  ayırma), s.62, s.151 kaynakça, ve **s.125 ile s.128 gerçek ama aşırı uzun haber/görev cümleleri**
+  (Ateşman -8 / -12; basılı sayfayla gerçek metin olduğu doğrulanmıştı, kural bunları sınıf üstü
+  yerine çıkarım sorunu diye ayırıyor).
 - Ölçüme girmeyenler: cümle sonu işareti olmayan paragraflar (kavram listesi, haber başlığı, tablo
   hücresi), sözlükçe paragrafları, form/etkinlik künyeleri ("Adı : … Amacı : … Süre :"; ≥3 alan),
-  sayfada 40 kelimelik gövde metni olmayan paragraflar. Sayıdaki nokta ("4.000") cümle sonu
-  sayılmaz. Şık işaretleri ("a.", "A)") cümleye katılmaz.
-- fen5'te %5, sosyal5'te %13 birim işaretlenir. En zor 10 paragraf basılı sayfayla kontrol edildi:
-  gerçek ve gerçekten zor düzyazı (sosyal5'te haber alıntıları s.106, 115, 128; uzun görev cümleleri
-  s.125; fen5 s.17 mühendislik tasarım döngüsü kutu metni; s.13 güvenlik sembolü kartları).
-- **Bağımsız doğrulama: turkce5.pdf** (5. sınıf Türkçe, 178 sayfa; referansta YOK, referans değiştirilmeden
-  `--sinif 5`, 28.10.2026): 335 birimde 28 işaretlendi = **%8,4** (beklenen ≈ %10; n=335'te standart
-  hata ≈ %1,6, yani tutarlı). Kitap ortancası 54,5, referansın 5. sınıf ortancasından (49,9) +4,6 puan
-  kolay; yine de oran ≈ %10 çıktı. fen5/sosyal5 oranları (%5 / %13) referansın içindeki kitaplar olduğu
-  için bağımsız sınav sayılmaz, bu ilk gerçek sınav. Türkçe dersi dil kitabı olduğundan ders etkisi
-  (fen5→sosyal5 farkı) burada da beklenir; oranın tutması şans da olabilir (tek kitap).
-  En zor 10'dan 4'ü basılı sayfayla kontrol edildi: **s.122 ve s.68 çıkarım sorunu** (basılı metin
-  normal; döndürülmüş/eğik "Bu temada" kutularında satırlar üst üste binip metin tekrarlı ve karışık
-  geliyor, cümle 60 kelime sayılıyor → Ateşman -129 / -42); **s.98 form-örnek metni** ("Kişiler / Yer /
-  Zaman / Olaylar" alanları etiketli doldurulmuş örnek, virgüllü tek cümle; s.88'deki 3. sıra aynı
-  içerik; kısmen gerçek ama ders metni değil, öğrenci örneği); **s.35 gerçek**: kitabın "uzun cümleyi
-  böl" etkinliğindeki bilerek uzun örnek cümle. Kalan 6'sı kontrol edilmedi. Yani en zor 10'un en az 2'si
-  (en kötü ikisi dahil) çıkarım artığı; 28 bulgunun kaçının artık olduğu ölçülmedi.
-  Sonuç: oran açısından referans bu kitapta tutuyor, ama sıralamanın tepesini döndürülmüş kutulardaki
-  satır çakışmaları dolduruyor. Bir sonraki iş: `duzen.py`'de üst üste binen/tekrarlı satırlı blokları
-  (aynı metnin parçaları tekrarlanıyor) tespit edip ölçümden çıkarmak (sosyal5 s.142 ile aynı sorun).
+  sayfada 40 kelimelik gövde metni olmayan paragraflar, çıkarım şüphesi birimleri. Sayıdaki nokta
+  ("4.000") cümle sonu sayılmaz. Şık işaretleri ("a.", "A)") cümleye katılmaz.
+- fen5'te %6 (9/143), sosyal5'te %12 (31/249) birim işaretlenir. En zor 10 paragraf basılı sayfayla
+  kontrol edildi (kopya temizliği öncesi): gerçek ve gerçekten zor düzyazı (sosyal5'te haber alıntıları
+  s.106, 115, 128; fen5 s.17 mühendislik tasarım döngüsü kutu metni; s.13 güvenlik sembolü kartları).
+  Temizlikten sonra fen5'in en zor 10'u aynı kaldı; sosyal5'te s.125 ve s.128 (biri) çıkarım şüphesine
+  geçti, listeye s.128'in ikinci parçası ve s.37 girdi.
+- **Bağımsız doğrulama: turkce5.pdf** (5. sınıf Türkçe, 178 sayfa; referansta YOK, referans eklenmeden
+  `--sinif 5`, 28.10.2026). İlk çalıştırma (kopya temizliği ve çıkarım şüphesi kuralından önce, eski
+  referansla): 335 birimde 28 işaretlendi = **%8,4**. En zor 10'dan 4'ü basılı sayfayla kontrol edildi:
+  s.122 ve s.68 çıkarım sorunu (döndürülmüş kutularda satırlar üst üste binmiş; sahte 60 kelimelik cümle,
+  Ateşman -129 / -42), s.98 form örneği, s.35 gerçek (kitabın "uzun cümleyi böl" etkinliği). En zor
+  listenin ilk dördü çıkarım artığı veya form metniydi.
+  Temizlik ve kuraldan sonra (referans sürüm 3, turkce5 hâlâ referansta değil): **25 / 329 birim = %7,6**
+  (beklenen ≈ %10; standart hata ≈ %1,7, yani tutarlı); kitap ortancası 55,0, referans ortancasından
+  (49,5) +5,5 puan kolay. Çıkarım şüphesi 5 birim. Yeni en zor 10 (s.45, 35, 16, 112, 12, 162, 112, 125,
+  72, 160) metin olarak okundu: hepsi gerçek, etkinlik yönergesi/tanım/ödev metni; s.35 ve s.45 önceden
+  basılı sayfayla doğrulanmıştı, kalan 8'i basılı sayfayla yeniden karşılaştırılmadı. Tek kitap ve
+  referansın oranı iki yönde de oynatmamış olması şans da olabilir; Türkçe dersi dil kitabı olduğundan
+  ders etkisi beklenir. fen5/sosyal5 oranları referansın içinde olduğu için bağımsız sınav sayılmaz.
 - Bilinen sınırlamalar: referans kitap sayısı az (sınıf başına 1-2) ve dersler karışık; kitabın
   yöntem/tanıtım metinleri (s.17 gibi) ile öğrencinin okuması beklenen metinler ayırt edilmiyor;
-  tablo/kart düzenindeki cümleler (s.13) okuma sırasına göre birleşebiliyor.
+  tablo/kart düzenindeki cümleler (s.13) okuma sırasına göre birleşebiliyor; etkinlik yönergeleri
+  ("ETKİNLİK a.a. …" etiketleri dahil) ile öğrenci örnek metinleri ölçüme giriyor; kopya katman
+  temizliği yalnızca aynı yerde duran ve benzer metinleri yakalar.
 
 ## Yazım analizörü notları
 

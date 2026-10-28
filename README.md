@@ -24,7 +24,7 @@ PDF ─► Metin çıkarma ─► Temizleme ─► Analizörler ─► Bulgular 
 |---|---|
 | `dkds/models.py` | Ortak veri yapıları: `Blok`, `Paragraf`, `Bulgu`, `CikarimSonucu` |
 | `dkds/cikarim.py` | PyMuPDF ile PDF okuma, taranmış sayfalarda OCR |
-| `dkds/duzen.py` | Üst/alt bilgi temizliği, bölünmüş paragrafların birleştirilmesi |
+| `dkds/duzen.py` | Üst/alt bilgi temizliği, kopya (tekrarlı) metin katmanının temizlenmesi, bölünmüş paragrafların birleştirilmesi |
 | `dkds/temizleme.py` | Satır sonu tirelemesi, ligatürler, bozuk kodlama tespiti |
 | `dkds/siniflandirma.py` | Paragraf türü: `baslik`, `govde`, `soru`, `liste`, `etiket` (kural tabanlı) |
 | `dkds/analiz/yazim.py` | Yazım analizörü: kesin kurallar, bilinmeyen kelime, Türkçe karakter kaybı ayrımı |
@@ -76,7 +76,9 @@ yalnızca yazım analizi çalışır. Okunabilirlik analizi yalnızca gövde par
 paragrafın Ateşman puanı, kitabın sınıfındaki referans dağılımın %10 diliminin altındaysa (yani o
 sınıf kitaplarındaki paragrafların %90'ından daha zorsa) bulgu üretilir. Referans 3-9. sınıf
 kitaplarından çıkarılmıştır (`dkds\analiz\referans.json`); bu aralığın dışındaki sınıflarda kitabın
-kendi %10 dilimi kullanılır. Ekranda ve JSON'daki `okunabilirlik_ozeti` bölümünde kitabın genel
+kendi %10 dilimi kullanılır. Ateşman puanı 0'ın altındaki ya da aynı 10 kelimelik diziyi iki kez içeren
+birimler okunabilirlik bulgusu sayılmaz; ölçüme katılmadan `cikarim_sorunu` türünde "olası metin çıkarma
+sorunu" olarak ayrıca raporlanır. Ekranda ve JSON'daki `okunabilirlik_ozeti` bölümünde kitabın genel
 Ateşman / Bezirci-Yılmaz puanı, kullanılan referans, puan dağılımı, işaretlenen oran ve en zor 10
 paragraf yer alır.
 
