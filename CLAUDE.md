@@ -50,6 +50,9 @@ hata tespiti, hatanın açıklanması ve hatanın bulunduğu sayfa/paragrafın g
 - s.146–147 haritadır (yüzlerce etiket); sayfa bağlamı kuralıyla tamamı etiket sayılır.
 - Bilinen sınırlama: font bilgisi kullanılmadığı için "Temel Kabuller" gibi ilk harfi büyük
   alt başlıklar etiket olarak sınıflanır.
+- s.5–6 (İstiklal Marşı, Gençliğe Hitabe) eski bir yazı tipiyle basılmış; ön incelemedeki "bozuk
+  kodlama beklenmiyor" notu bu sayfalar için geçerli değil. `temizleme.kodlamayi_onar` onarıyor.
+- Düzyazı örnek sayfası: s.35 (Ay'ın yüzeyi). Paragraf ayrımını burada kontrol et.
 
 ## İkinci test kitabı: `veri/sosyalbilgiler5.pdf` (5. Sınıf Sosyal Bilgiler, 154 sayfa)
 
@@ -61,11 +64,34 @@ Kurallar iki kitapta da denenmeli; tek kitaba göre eşik ayarlanmamalı.
   basılı halde doğru. Yazım analizöründe yanlış alarm üretebilir.
 - s.142'de aynı cümleler iki farklı yazımla iki kez çıkıyor (gizli/üst üste metin katmanı).
 - Madde imi az kullanılmış; liste türünün düşük çıkması (%1) kural hatası değil.
+- s.3–4 (İstiklal Marşı, Gençliğe Hitabe) eski Türkçe yazı tipi: ş, ı, ğ, İ, Ş harfleri Unicode'a
+  eşlenmemiş kodlarla saklanıyor (ú→ş, Õ→ı, ÷→ğ, ø→İ, ù→Ş; büyük harfli kelimedeki ö→Ğ).
+  PyMuPDF'in varsayılan bayrağıyla (TEXT_CID_FOR_UNKNOWN_UNICODE) bu kodlar gelir; bu bayrak
+  olmadan "�" olur ve bilgi kaybedilir. Onarım sayfa başına yapılır ve uyarıyla bildirilir.
+  Harita sayfaları (ESRI simge yazı tipleri) bu eşlemeyle onarılamaz, eski davranışta kalır.
+
+## Tutarsızlık kriteri test örnekleri (sosyalbilgiler5)
+
+Alıntılar çıkarılan metinden doğrulandı (28.10.2026). Bu kitapta PDF sayfa numarası basılı
+sayfa numarasıyla aynıdır. Kitap kendi sayma kuralını s.112'de verir: "2000'li yıllarda olduğumuz
+düşünüldüğünde" yani günümüzden kaç yıl önce = MÖ yıl + 2000.
+
+Çelişki adayı (analizör yakalamalı):
+- Çatalhöyük: s.112 "Çatalhöyük (MÖ 7500)" → 9.500 yıl önce; s.147 "Bundan 9 500 yıl önce
+  Çatalhöyük sakinleri…" bununla tutarlı; s.118 "Çatalhöyük, yaklaşık 9000 yıl önce kurulmuştur"
+  ise 500 yıl farklı. "yaklaşık" yuvarlama savunması olabilir, güven orta tutulmalı.
+
+Tutarlı örnek (yanlış alarm üretmemeli):
+- Göbeklitepe: s.112 "MÖ 10000 yıllarında inşa edilmiştir" = "günümüzden 12.000 yıl önce"; s.114
+  "Günümüzden yaklaşık 12 bin yıl önce" (aynı değer, farklı yazım: "12.000" / "12 bin").
+  Not: s.128'deki "11.500-12.000 yıl önce" Karahantepe için, Göbeklitepe için değil.
 
 ## Yazım analizörü notları
 
 - zeyrek 0.1.3'te durum bozulması hatası var (lru_cache'li küme değiştiriliyor); `morfoloji.py`
   çalışma anında yamalıyor. Yama kaldırılırsa sonuçlar çalıştırmadan çalıştırmaya değişir.
+  Yama bu sürümün iç yapısına bağlı: requirements.txt'de `zeyrek==0.1.3` sabit, yükseltme yapılırsa
+  yamanın hâlâ işe yaradığı `tests/test_morfoloji.py` ile kontrol edilmeli.
 - fen5 s.56–57, 96–97: dekoratif Jokerman yazı tipi ş/ğ'yi s/g kodluyor; basılı hali doğru
   ("Günes", "kaynagı") → `karakter_kaybi` (çıkarım sorunu), yazım hatası değil.
 - Bulgu değerlendirmesi metin katmanına değil, PDF'in basılı görüntüsüne bakılarak yapılır.
@@ -74,7 +100,8 @@ Kurallar iki kitapta da denenmeli; tek kitaba göre eşik ayarlanmamalı.
   "nakışı" (s.23), "fotoğraf,gazete" (s.62), kaynakça "Özyürek,A" (s.21).
 - Kalan yanlış alarmların çoğu yabancı/yöresel kelimeler ("kukeri", "resfebe") ve zeyrek'in
   tanımadığı biçimler ("bulmalıyız", "sahipti"). `ek_sozluk.txt`'ye yalnızca TDK'da olan sözcük eklenir.
-- Düzyazı örnek sayfası: s.35 (Ay'ın yüzeyi). Paragraf ayrımını burada kontrol et.
+- İstiklal Marşı sayfaları (fen5 s.5, sosyal5 s.3) onarıldıktan sonra yazıma girer; metnin
+  arkaik sözcükleri ("serhaddim", "vecd", "hürriyyet") düşük güvenli yanlış alarm üretir.
 
 ## Çalışma şekli
 
