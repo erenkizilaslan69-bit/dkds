@@ -8,7 +8,7 @@ Tespit edilen her sorun, açıklamasıyla birlikte kitabın ilgili **sayfa ve pa
 | Kriter | Yöntem | Durum |
 |---|---|---|
 | Yazım ve dil hataları | Kural tabanlı + morfolojik analiz (zeyrek) | İlk sürüm |
-| Yaş / sınıf seviyesine uygunluk | İstatistiksel (Ateşman, Bezirci-Yılmaz) | Planlandı |
+| Yaş / sınıf seviyesine uygunluk | İstatistiksel (Ateşman, Bezirci-Yılmaz) | İlk sürüm (sabit eşik; referans dağılım gerekiyor) |
 | Kitap içi bilgi tutarsızlığı | Yapay zekâ destekli (LLM) | Planlandı |
 
 ## Mimari
@@ -29,6 +29,7 @@ PDF ─► Metin çıkarma ─► Temizleme ─► Analizörler ─► Bulgular 
 | `dkds/siniflandirma.py` | Paragraf türü: `baslik`, `govde`, `soru`, `liste`, `etiket` (kural tabanlı) |
 | `dkds/analiz/yazim.py` | Yazım analizörü: kesin kurallar, bilinmeyen kelime, Türkçe karakter kaybı ayrımı |
 | `dkds/analiz/morfoloji.py` | zeyrek sarmalayıcısı: kelime geçerliliği, önbellek, zeyrek hata yaması |
+| `dkds/analiz/okunabilirlik.py` | Okunabilirlik analizörü: cümle ayırma, Ateşman ve Bezirci-Yılmaz formülleri, sınıf düzeyi karşılaştırması |
 
 `duzen.py`, `temizleme.py` ve `siniflandirma.py` hiçbir PDF kütüphanesine bağlı değildir; böylece bağımsız olarak test edilebilirler.
 
@@ -63,11 +64,17 @@ python -m dkds veri\kitap.pdf
 }
 ```
 
-Yazım analizi:
+Yazım ve okunabilirlik analizi:
 
 ```powershell
-python -m dkds analiz veri\kitap.pdf
+python -m dkds analiz veri\kitap.pdf --sinif 5
 ```
+
+`--sinif` (1-12) kitabın sınıf düzeyidir; verilirse okunabilirlik analizi de yapılır, verilmezse
+yalnızca yazım analizi çalışır. Okunabilirlik analizi yalnızca gövde paragraflarını değerlendirir:
+paragrafın Ateşman düzeyi kitabın sınıfının en az iki kademe üstündeyse bulgu üretir. Ekranda ve
+JSON'daki `okunabilirlik_ozeti` bölümünde kitabın genel Ateşman / Bezirci-Yılmaz puanı, sınıf
+düzeyi tahmini, puan dağılımı ve en zor 10 paragraf yer alır.
 
 Bulgular `cikti\kitap_bulgular.json` dosyasına yazılır; ekranda kriter, bulgu türü ve paragraf
 türüne göre özet gösterilir. Her bulgu `Bulgu` formatındadır (sayfa, paragraf, kriter,
@@ -84,7 +91,7 @@ python -m unittest -v
 
 - [x] **Hafta 2–3:** PDF'ten sayfa/paragraf bilgisiyle metin çıkarma ve temizleme
 - [x] **Hafta 4–5:** Yazım ve dil hataları analizörü — ilk uçtan uca demo (ilk sürüm)
-- [ ] **Hafta 6–7:** Okunabilirlik / sınıf seviyesi analizörü
+- [x] **Hafta 6–7:** Okunabilirlik / sınıf seviyesi analizörü (ilk sürüm; sınıf başına referans dağılım eksik)
 - [ ] **Hafta 8–9:** Kitap içi bilgi tutarsızlığı analizörü (LLM)
 - [ ] **Hafta 10–11:** Arayüz ve raporlama
 - [ ] **Hafta 12:** Değerlendirme (precision / recall)

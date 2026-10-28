@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import math
 import re
+import statistics
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -258,7 +259,9 @@ EN_ZOR_PARAGRAF_SAYISI = 10
 EN_UZUN_KELIME_SAYISI = 4
 SORUNLU_METIN_EN_FAZLA = 240
 
-_CUMLE_SONU_ISARETI = re.compile(r"[.!?…]")
+# Gerçek cümle sonu: noktalamadan sonra boşluk ya da metin sonu gelir. Sayıların içindeki
+# nokta ("4.000", "3.5") ve adreslerdeki nokta ("meb.gov.tr") cümle sonu sayılmaz.
+_CUMLE_SONU_ISARETI = re.compile(r"[.!?…]+[\"”’»)\]]*(?:\s|$)")
 # Uzun cümleyi bölmek için uygun yerler: virgül/noktalı virgülden sonra ya da bu sözcüklerden önce
 _BOLME_SOZCUKLERI = frozenset({"ancak", "fakat", "ama", "çünkü", "oysa", "ayrıca", "böylece", "ki"})
 _BOLME_EN_AZ_KELIME = 5  # bölünen her parça en az bu kadar kelime içermeli
@@ -424,7 +427,10 @@ class OkunabilirlikAnalizoru:
             fark = atesman_kademesi(b.metrikler.atesman) - self.kitap_kademesi
             if fark >= KADEME_FARKI:
                 bulgular.append(self._bulgu(b, fark, kitap_oks))
-        return OkunabilirlikSonucu(bulgular=bulgular, ozet=self._ozet(birimler, toplam, atlanan))
+        ozet = self._ozet(birimler, toplam, atlanan)
+        ozet["isaretlenen_birim"] = len(bulgular)
+        ozet["isaretlenen_oran"] = len(bulgular) / len(birimler) if birimler else 0.0
+        return OkunabilirlikSonucu(bulgular=bulgular, ozet=ozet)
 
     def _bulgu(self, b: Birim, fark: int, kitap_oks: float) -> Bulgu:
         m = b.metrikler
@@ -477,11 +483,20 @@ class OkunabilirlikAnalizoru:
         if not toplam.hazir:
             return ozet
         atesman, yod = toplam.atesman, toplam.bezirci_yilmaz
+        puanlar = sorted(b.metrikler.atesman for b in birimler)
+        medyan = statistics.median(puanlar)
         ozet.update(
             ortalama_cumle_uzunlugu=toplam.ortalama_cumle_uzunlugu,
             hece_kelime=toplam.hece_kelime,
             atesman={"puan": atesman, "duzey": atesman_duzeyi(atesman)},
             bezirci_yilmaz={"puan": yod, "duzey": bezirci_yilmaz_duzeyi(yod)},
+            # Birim başına Ateşman puanlarının dağılımı: sabit eşiğin kitap için ayırt edici
+            # olup olmadığını görmek ve ileride sınıf başına referans dağılım çıkarmak için.
+            atesman_dagilimi={
+                "ortalama": statistics.fmean(puanlar), "std": statistics.pstdev(puanlar), "medyan": medyan,
+                "p10": puanlar[int(len(puanlar) * 0.1)], "p90": puanlar[min(len(puanlar) - 1, int(len(puanlar) * 0.9))],
+            },
+            medyan_kademe_farki=atesman_kademesi(medyan) - self.kitap_kademesi,
         )
         en_zorlar = sorted(birimler, key=lambda b: b.metrikler.atesman)[:EN_ZOR_PARAGRAF_SAYISI]
         ozet["en_zor_paragraflar"] = [

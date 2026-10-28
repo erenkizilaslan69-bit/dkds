@@ -86,6 +86,30 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   "Günümüzden yaklaşık 12 bin yıl önce" (aynı değer, farklı yazım: "12.000" / "12 bin").
   Not: s.128'deki "11.500-12.000 yıl önce" Karahantepe için, Göbeklitepe için değil.
 
+## Okunabilirlik analizörü notları
+
+- Bezirci-Yılmaz formülünde karekök TÜM çarpımın üzerindedir: √(OKS × (H3×0,84 + H4×1,5 + H5×3,5 +
+  H6×26,25)). Orijinal makaleden (Bezirci ve Yılmaz 2010, DEÜ Fen ve Müh. Dergisi 12(3), Çizelge 8-9)
+  doğrulandı; `tests/test_okunabilirlik.py` makaledeki 9 değeri yeniden üretir. Makale puanı doğrudan
+  sınıf düzeyi sayar (7,34 → 7-8. sınıf; 12-16 lisans, 16+ akademik).
+- Kural: paragrafın Ateşman kademesi kitabın sınıfının kademesinden ≥2 üstteyse bulgu (5. sınıf =
+  5-6. sınıf düzeyi → puan < 70). Birim: gövde paragrafı; 40 kelimeden kısa olanlar aynı sayfadaki
+  komşu gövde paragraflarıyla birleştirilir.
+- **Sabit kademe eşiği bu kitaplarda ayırt edici değil:** ortanca birim Ateşman puanı fen5'te 54,9,
+  sosyal5'te 47,2 (11-12. sınıf / lisans düzeyi); kural birimlerin %88'ini / %93'ünü işaretliyor
+  (≥4 kademe olsa bile %33 / %60). İki bağımsız 5. sınıf kitabı birbirine yakın: genel Ateşman 57,2 /
+  55,6, Bezirci-Yılmaz 12,9 / 13,3, cümle 9,7 / 9,6 kelime, kelime başına 2,90 / 2,94 hece. Ateşman'ın
+  tablosu Türkçe ders kitabı metnini sistematik olarak çok zor gösteriyor → yukarıdaki "referans puan
+  dağılımı" planı gerekli (iki kitabın birleşik 403 biriminde ort. 50,6, σ 20,3; ort−σ = 30,3 altı %7,4).
+- Ölçüme girmeyenler: cümle sonu işareti olmayan paragraflar (kavram listesi, haber başlığı, tablo
+  hücresi, ifade listesi), sözlükçe paragrafları, sayfada 40 kelimelik gövde metni olmayan paragraflar.
+  Sayıdaki nokta ("4.000") cümle sonu sayılmaz. Şık işaretleri ("a.", "A)") cümleye katılmaz.
+- En zor 10 paragraf basılı sayfayla kontrol edildi: gerçek ve gerçekten zor düzyazı (sosyal5'te haber
+  alıntıları s.106, 115, 128; uzun görev cümleleri s.125; fen5 s.17 mühendislik tasarım döngüsünü
+  anlatan kutu metni; s.13 güvenlik sembolü kartları). Bilinen sınırlama: kitabın yöntem/tanıtım
+  metinleri (s.17 gibi) ile öğrencinin okuması beklenen metinler ayırt edilmiyor; tablo/kart
+  düzenindeki cümleler (s.13) okuma sırasına göre birleşebiliyor.
+
 ## Yazım analizörü notları
 
 - zeyrek 0.1.3'te durum bozulması hatası var (lru_cache'li küme değiştiriliyor); `morfoloji.py`

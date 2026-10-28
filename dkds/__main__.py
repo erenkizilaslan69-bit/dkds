@@ -102,10 +102,12 @@ def analiz(argumanlar: list[str]) -> int:
 def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
     from .analiz.okunabilirlik import sayi_yaz
 
+    etiketler = {"cumle_isaretsiz": "cümle sonu işareti olmayan paragraf", "sozluk": "sözlükçe paragrafı",
+                 "kisa_sayfa": "sayfada 40 kelimelik gövde metni olmayan paragraf"}
     print(f"\nOkunabilirlik özeti ({ozet['sinif']}. sınıf kitabı):")
     print(f"  Değerlendirilen : {ozet['birim_sayisi']} metin birimi, {ozet['kelime']} kelime, {ozet['cumle']} cümle")
     if ozet["atlanan"]:
-        atlanan = ", ".join(f"{ad}: {sayi}" for ad, sayi in ozet["atlanan"].items())
+        atlanan = ", ".join(f"{etiketler.get(ad, ad)}: {sayi}" for ad, sayi in ozet["atlanan"].items())
         print(f"  Atlanan         : {atlanan}")
     if "atesman" not in ozet:
         return
@@ -113,6 +115,15 @@ def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
     print(f"  Bezirci-Yılmaz  : {sayi_yaz(ozet['bezirci_yilmaz']['puan'], 2)} ({ozet['bezirci_yilmaz']['duzey']})")
     print(f"  Ort. cümle      : {sayi_yaz(ozet['ortalama_cumle_uzunlugu'])} kelime, "
           f"kelime başına {sayi_yaz(ozet['hece_kelime'], 2)} hece")
+    d = ozet["atesman_dagilimi"]
+    print(f"  Birim Ateşman   : medyan {sayi_yaz(d['medyan'])}, ortalama {sayi_yaz(d['ortalama'])} "
+          f"(std {sayi_yaz(d['std'])}), %10-%90 aralığı {sayi_yaz(d['p10'])}–{sayi_yaz(d['p90'])}")
+    print(f"  İşaretlenen     : {ozet['isaretlenen_birim']} / {ozet['birim_sayisi']} birim "
+          f"(%{ozet['isaretlenen_oran'] * 100:.0f})")
+    if ozet["isaretlenen_oran"] > 0.5:
+        print(f"  ! Uyarı: birimlerin yarısından fazlası işaretlendi; ortanca paragraf bile kitap düzeyinin "
+              f"{ozet['medyan_kademe_farki']} kademe üstünde. Sabit kademe eşiği bu kitapta ayırt edici değil; "
+              "sınıf için referans dağılımla karşılaştırma gerekir.")
     print(f"  En zor {len(ozet['en_zor_paragraflar'])} paragraf (Ateşman puanı düşük = zor):")
     for sira, p in enumerate(ozet["en_zor_paragraflar"], start=1):
         paragraf = f"¶{p['paragraflar'][0]}" + (f"–{p['paragraflar'][-1]}" if len(p["paragraflar"]) > 1 else "")

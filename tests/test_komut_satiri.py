@@ -73,8 +73,23 @@ class AnalizKomutuTest(unittest.TestCase):
     def test_ekran_ozeti(self):
         _, ekran, _ = self.calistir("--sinif", "5")
         for parca in ("okunabilirlik", "Okunabilirlik özeti (5. sınıf kitabı)", "Ateşman", "Bezirci-Yılmaz",
-                      "En zor 4 paragraf", "yazim"):
+                      "En zor 4 paragraf", "yazim", "Birim Ateşman", "İşaretlenen     : 2 / 4 birim (%50)"):
             self.assertIn(parca, ekran)
+        self.assertNotIn("Uyarı: birimlerin yarısından fazlası", ekran)  # tam yarısı: uyarı yok
+
+    def test_cogu_isaretlenince_uyari_verilir(self):
+        from dkds.__main__ import _okunabilirlik_ozeti_yaz
+
+        ozet = {"sinif": 5, "birim_sayisi": 10, "atlanan": {}, "kelime": 500, "cumle": 50,
+                "atesman": {"puan": 55.0, "duzey": "11-12. sınıf"}, "bezirci_yilmaz": {"puan": 13.0, "duzey": "lisans"},
+                "ortalama_cumle_uzunlugu": 10.0, "hece_kelime": 2.9, "en_zor_paragraflar": [],
+                "atesman_dagilimi": {"medyan": 54.0, "ortalama": 54.0, "std": 14.0, "p10": 35.0, "p90": 72.0},
+                "isaretlenen_birim": 9, "isaretlenen_oran": 0.9, "medyan_kademe_farki": 3}
+        ekran = io.StringIO()
+        with contextlib.redirect_stdout(ekran):
+            _okunabilirlik_ozeti_yaz(ozet)
+        self.assertIn("Uyarı: birimlerin yarısından fazlası işaretlendi", ekran.getvalue())
+        self.assertIn("3 kademe üstünde", ekran.getvalue())
 
     def test_sinif_verilmezse_yalnizca_yazim(self):
         _, ekran, kayit = self.calistir()

@@ -211,6 +211,16 @@ class AtlamaNedeniTest(unittest.TestCase):
         self.assertEqual(atlama_nedeni("kuvvet kuvvet birimi dinamometre kütle ağırlık sürtünme"), "cumle_isaretsiz")
         self.assertEqual(atlama_nedeni("Valizlerin altına tekerlek takılması"), "cumle_isaretsiz")
 
+    def test_sayidaki_nokta_cumle_sonu_degildir(self):
+        # sosyalbilgiler5.pdf s.128: haber başlığındaki "4.000" noktası başlığı cümle yapmaz
+        self.assertEqual(atlama_nedeni("Tavşanlı’da 4.000 yıllık nohut ve ekmek kalıntıları gün yüzüne çıkarıldı"),
+                         "cumle_isaretsiz")
+        self.assertEqual(atlama_nedeni("Bilgi için meb.gov.tr adresine ortak metin sayfasına bakınız"), "cumle_isaretsiz")
+
+    def test_cumle_sonu_tirnak_ve_parantezle_biter(self):
+        self.assertIsNone(atlama_nedeni("Bakan “Burada çalışıyoruz.” dedi (Genel ağ). Haberler bitti."))
+        self.assertIsNone(atlama_nedeni("Soruyu yazınız ve cevaplayınız."))
+
     def test_cumle_isaretli_paragraf_uygun(self):
         self.assertIsNone(atlama_nedeni(KOLAY))
         self.assertIsNone(atlama_nedeni("Su kaynayınca buhar olur."))
@@ -329,6 +339,17 @@ class AnalizTest(unittest.TestCase):
         en_zor = ozet["en_zor_paragraflar"]
         self.assertEqual([p["paragraflar"] for p in en_zor], [[2], [1]])
         self.assertLess(en_zor[0]["atesman"], en_zor[1]["atesman"])
+
+    def test_ozet_isaretlenen_oran_ve_dagilim(self):
+        ozet = self.sonuc([paragraf(KOLAY, no=1), paragraf(ZOR, no=2)]).ozet
+        self.assertEqual((ozet["isaretlenen_birim"], ozet["isaretlenen_oran"]), (1, 0.5))
+        d = ozet["atesman_dagilimi"]
+        # iki birimin puanı 114,037 ve -82,193 (elle doğrulandı): ortalama 15,92, medyan aynı
+        self.assertAlmostEqual(d["ortalama"], (114.037 - 82.193) / 2, places=2)
+        self.assertAlmostEqual(d["medyan"], d["ortalama"], places=6)
+        self.assertAlmostEqual(d["std"], (114.037 + 82.193) / 2, places=2)
+        # medyan 15,9 -> lisans üstü (kademe 6), 5. sınıf kademesi 1: 5 kademe fark
+        self.assertEqual(ozet["medyan_kademe_farki"], 5)
 
     def test_ozet_en_zor_paragraf_sayisi_sinirlidir(self):
         paragraflar = [paragraf(ZOR + f" Ek{n}.", no=n) for n in range(1, 16)]
