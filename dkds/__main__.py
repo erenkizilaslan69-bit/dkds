@@ -4,6 +4,8 @@
     python -m dkds analiz <pdf> [--sinif 5] [-o bulgular.json]
                                                              yazım analizi; --sinif verilirse
                                                              okunabilirlik analizi de yapılır
+    python -m dkds referans -k 3 <pdf> -k 5 <pdf> ... [-o referans.json]
+                                                             sınıf başına okunabilirlik referansı üretir
 """
 from __future__ import annotations
 
@@ -132,6 +134,56 @@ def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
         print(f"       {p['metin']}")
 
 
+def referans(argumanlar: list[str]) -> int:
+    from .analiz.okunabilirlik import OLCUM_SURUMU, birimleri_olustur
+    from .analiz.referans import VARSAYILAN_YOL, SinifVerisi, referans_kaydet, referans_olustur
+
+    ayrac = argparse.ArgumentParser(
+        prog="dkds referans",
+        description="DKDS – kitaplardan sınıf başına okunabilirlik referans tablosu (referans.json) üretir.",
+    )
+    ayrac.add_argument("-k", "--kitap", nargs=2, action="append", required=True, metavar=("SINIF", "PDF"),
+                       help="Bir kitabın sınıfı ve PDF'i; her kitap için tekrarlanır (aynı sınıfa birden çok kitap verilebilir)")
+    ayrac.add_argument("-o", "--cikti", type=Path, default=VARSAYILAN_YOL, help=f"Varsayılan: {VARSAYILAN_YOL}")
+    ayrac.add_argument("--ocr-kapali", action="store_true", help="Taranmış sayfalarda OCR yapma")
+    arg = ayrac.parse_args(argumanlar)
+
+    veriler: dict[int, SinifVerisi] = {}
+    for sinif_metni, pdf in arg.kitap:
+        if not sinif_metni.isdigit() or not 1 <= int(sinif_metni) <= 12:
+            print(f"Geçersiz sınıf: {sinif_metni} (1-12 arası olmalı)", file=sys.stderr)
+            return 1
+        if not Path(pdf).exists():
+            print(f"Dosya bulunamadı: {pdf}", file=sys.stderr)
+            return 1
+        sonuc = pdf_oku(pdf, ocr=not arg.ocr_kapali)
+        birimler, _ = birimleri_olustur(sonuc.paragraflar)
+        veri = veriler.setdefault(int(sinif_metni), SinifVerisi())
+        for b in birimler:
+            if b.metrikler.hazir:
+                veri.atesman.append(b.metrikler.atesman)
+                veri.bezirci_yilmaz.append(b.metrikler.bezirci_yilmaz)
+        veri.kitaplar.append(Path(pdf).name)
+        print(f"  {sinif_metni}. sınıf: {Path(pdf).name} -> {len(birimler)} birim")
+
+    aciklama = (
+        "Sınıf başına paragraf (birim) bazında Ateşman ve Bezirci-Yılmaz puanlarının ortancası, %10 ve %90 "
+        "dilimleri. Ateşman'da düşük puan, Bezirci-Yılmaz'da yüksek puan zordur. Ara_deger=true olan sınıflar "
+        "komşu sınıflardan doğrusal ara değerdir. olcum_surumu, referansı üreten okunabilirlik.py ölçümünün "
+        "sürümüdür; ölçüm değişirse referans yeniden üretilmelidir. Üretim: python -m dkds referans -k SINIF PDF ..."
+    )
+    ref = referans_olustur(veriler, OLCUM_SURUMU, aciklama)
+    referans_kaydet(ref, arg.cikti)
+
+    print(f"\n{'sınıf':>6} {'birim':>6}  {'Ateşman %10':>11} {'ortanca':>8} {'%90':>6}   {'B-Y %10':>7} {'ortanca':>8} {'%90':>6}")
+    for no, r in ref.siniflar.items():
+        etiket = "ara" if r.ara_deger else str(r.birim_sayisi)
+        print(f"{no:>6} {etiket:>6}  {r.atesman.p10:>11.1f} {r.atesman.ortanca:>8.1f} {r.atesman.p90:>6.1f}   "
+              f"{r.bezirci_yilmaz.p10:>7.1f} {r.bezirci_yilmaz.ortanca:>8.1f} {r.bezirci_yilmaz.p90:>6.1f}")
+    print(f"\nReferans kaydedildi: {arg.cikti}")
+    return 0
+
+
 def _json_yaz(yol: Path, veri) -> None:
     yol.parent.mkdir(parents=True, exist_ok=True)
     yol.write_text(json.dumps(veri, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -155,6 +207,8 @@ def main() -> int:
     argumanlar = sys.argv[1:]
     if argumanlar and argumanlar[0] == "analiz":
         return analiz(argumanlar[1:])
+    if argumanlar and argumanlar[0] == "referans":
+        return referans(argumanlar[1:])
     return cikar(argumanlar)
 
 

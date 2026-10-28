@@ -244,6 +244,11 @@ def bezirci_yilmaz_duzeyi(puan: float) -> str:
 KRITER = "okunabilirlik"
 INCELENEN_TURLER = {"govde"}
 
+# Ölçümü değiştiren her düzenlemede (cümle ayırma, hece/kelime sayımı, birim oluşturma,
+# atlama kuralları, formüller) artırılır. referans.json bu sürümle üretilir; sürüm
+# uyuşmazsa referans yeniden üretilmelidir: python -m dkds referans (bkz. README).
+OLCUM_SURUMU = 1
+
 # Bundan az kelimeli gövde paragrafları aynı sayfadaki komşu gövde paragraflarıyla
 # birleştirilerek değerlendirilir; çok kısa metinde formüller güvenilir sonuç vermez.
 EN_AZ_KELIME = 40
@@ -349,6 +354,57 @@ def _birlestir(konumlar: list[Konum]) -> Konum:
             max(k[2] for k in konumlar), max(k[3] for k in konumlar))
 
 
+def birimleri_olustur(paragraflar: Iterable[Paragraf]) -> tuple[list[Birim], Counter]:
+    """Gövde paragraflarını değerlendirme birimlerine ayırır; atlananları sayar.
+
+    - Cümle sonu işareti olmayan paragraflar ve sözlükçe paragrafları atlanır
+      (bkz. atlama_nedeni).
+    - EN_AZ_KELIME'den kısa paragraflar aynı sayfadaki sonraki gövde paragraflarıyla
+      birleştirilir; sayfanın sonunda kalan kısa parça bir öncekine eklenir.
+    - Sayfada toplam EN_AZ_KELIME kelimelik gövde metni yoksa sayfa atlanır.
+    """
+    sayfalar: dict[int, list[Paragraf]] = defaultdict(list)
+    for p in paragraflar:
+        if p.tur in INCELENEN_TURLER:
+            sayfalar[p.sayfa].append(p)
+
+    birimler: list[Birim] = []
+    atlanan: Counter = Counter()
+    for sayfa_no in sorted(sayfalar):
+        gruplar: list[list[Paragraf]] = []
+        mevcut: list[Paragraf] = []
+        mevcut_kelime = 0
+        for p in sayfalar[sayfa_no]:
+            neden = atlama_nedeni(p.metin)
+            if neden:
+                atlanan[neden] += 1
+                continue
+            mevcut.append(p)
+            mevcut_kelime += len(kelimeleri_bul(p.metin))
+            if mevcut_kelime >= EN_AZ_KELIME:
+                gruplar.append(mevcut)
+                mevcut, mevcut_kelime = [], 0
+        if mevcut:
+            if gruplar:
+                gruplar[-1].extend(mevcut)
+            else:
+                atlanan["kisa_sayfa"] += len(mevcut)
+        birimler.extend(_birim(sayfa_no, g) for g in gruplar)
+    return birimler, atlanan
+
+def _birim(sayfa_no: int, grup: list[Paragraf]) -> Birim:
+    metin = " ".join(p.metin for p in grup)
+    cumleler = cumlelere_ayir(metin)
+    return Birim(
+        sayfa=sayfa_no,
+        paragraflar=[p.paragraf for p in grup],
+        metin=metin,
+        konum=_birlestir([p.konum for p in grup]),
+        cumleler=cumleler,
+        metrikler=metrikleri_hesapla(cumleler),
+    )
+
+
 class OkunabilirlikAnalizoru:
     """Gövde paragraflarının okunabilirliğini kitabın sınıf düzeyiyle karşılaştırır."""
 
@@ -359,55 +415,7 @@ class OkunabilirlikAnalizoru:
     # ------------------------------------------------------------------ değerlendirme birimleri
 
     def birimleri_olustur(self, paragraflar: Iterable[Paragraf]) -> tuple[list[Birim], Counter]:
-        """Gövde paragraflarını değerlendirme birimlerine ayırır; atlananları sayar.
-
-        - Cümle sonu işareti olmayan paragraflar ve sözlükçe paragrafları atlanır
-          (bkz. atlama_nedeni).
-        - EN_AZ_KELIME'den kısa paragraflar aynı sayfadaki sonraki gövde paragraflarıyla
-          birleştirilir; sayfanın sonunda kalan kısa parça bir öncekine eklenir.
-        - Sayfada toplam EN_AZ_KELIME kelimelik gövde metni yoksa sayfa atlanır.
-        """
-        sayfalar: dict[int, list[Paragraf]] = defaultdict(list)
-        for p in paragraflar:
-            if p.tur in INCELENEN_TURLER:
-                sayfalar[p.sayfa].append(p)
-
-        birimler: list[Birim] = []
-        atlanan: Counter = Counter()
-        for sayfa_no in sorted(sayfalar):
-            gruplar: list[list[Paragraf]] = []
-            mevcut: list[Paragraf] = []
-            mevcut_kelime = 0
-            for p in sayfalar[sayfa_no]:
-                neden = atlama_nedeni(p.metin)
-                if neden:
-                    atlanan[neden] += 1
-                    continue
-                mevcut.append(p)
-                mevcut_kelime += len(kelimeleri_bul(p.metin))
-                if mevcut_kelime >= EN_AZ_KELIME:
-                    gruplar.append(mevcut)
-                    mevcut, mevcut_kelime = [], 0
-            if mevcut:
-                if gruplar:
-                    gruplar[-1].extend(mevcut)
-                else:
-                    atlanan["kisa_sayfa"] += len(mevcut)
-            birimler.extend(self._birim(sayfa_no, g) for g in gruplar)
-        return birimler, atlanan
-
-    @staticmethod
-    def _birim(sayfa_no: int, grup: list[Paragraf]) -> Birim:
-        metin = " ".join(p.metin for p in grup)
-        cumleler = cumlelere_ayir(metin)
-        return Birim(
-            sayfa=sayfa_no,
-            paragraflar=[p.paragraf for p in grup],
-            metin=metin,
-            konum=_birlestir([p.konum for p in grup]),
-            cumleler=cumleler,
-            metrikler=metrikleri_hesapla(cumleler),
-        )
+        return birimleri_olustur(paragraflar)
 
     # ------------------------------------------------------------------ analiz
 
