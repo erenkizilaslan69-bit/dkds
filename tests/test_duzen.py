@@ -1,6 +1,6 @@
 import unittest
 
-from dkds.duzen import bolunmus_paragraflari_birlestir, ust_alt_bilgi_temizle
+from dkds.duzen import bolunmus_paragraflari_birlestir, tekrarli_metni_temizle, ust_alt_bilgi_temizle
 from dkds.models import Blok
 
 SAYFA_H = 800.0
@@ -95,6 +95,59 @@ class BirlestirmeTest(unittest.TestCase):
         a = blok(1, 100, 118, "arada büyük boşluk olan\n")
         b = blok(1, 200, 218, "devam metni\n")
         self.assertEqual(len(bolunmus_paragraflari_birlestir([a, b])), 2)
+
+
+class TekrarliMetinTest(unittest.TestCase):
+    """Kopya metin katmanı (turkce5.pdf s.68, 122; sosyalbilgiler5.pdf s.142 kalıbı)."""
+
+    def test_art_arda_tekrar_eden_satirlar_tek_satira_iner(self):
+        b = blok(1, 100, 160, "Bu temada\nBu temada\nyazılarınızı zenginleştirecek biçimde söz varlığınızı kullanır-\n"
+                              "yazılarınızı zenginleştirecek biçimde söz varlığınızı kullanır-\nken birinci temadaki\n")
+        sonuc, silinen = tekrarli_metni_temizle([b])
+        self.assertEqual(silinen, 2)
+        self.assertEqual(sonuc[0].metin.count("Bu temada"), 1)
+        self.assertEqual(sonuc[0].metin.count("zenginleştirecek"), 1)
+        self.assertIn("ken birinci temadaki", sonuc[0].metin)
+
+    def test_sonu_farkli_yazilan_kopya_satir_da_silinir(self):
+        b = blok(1, 100, 130, "Anadolu'ya çivi yazısını getirmişlerdir.\nAnadoluya çivi yazısını getirmişlerdir\n")
+        sonuc, silinen = tekrarli_metni_temizle([b])
+        self.assertEqual(silinen, 1)
+        self.assertEqual(sonuc[0].metin.count("getirmişlerdir"), 1)
+
+    def test_ayni_yerdeki_benzer_ikinci_blok_silinir(self):
+        a = blok(1, 100, 130, "Asurlular\nkurdukları\nticaret kolonileri\n", x0=410, x1=490)
+        b = blok(1, 101, 131, "Asurlar\nkurdukları\nticaret kolonileri\n", x0=411, x1=489)
+        sonuc, silinen = tekrarli_metni_temizle([a, b])
+        self.assertEqual(sonuc, [a])
+        self.assertEqual(silinen, 1)
+
+    def test_farkli_yerdeki_ayni_metin_silinmez(self):
+        # tablo hücreleri: aynı metin farklı konumlarda gerçek tekrardır
+        a = blok(1, 100, 120, "Doğru cevap\n", x0=50, x1=150)
+        b = blok(1, 300, 320, "Doğru cevap\n", x0=50, x1=150)
+        sonuc, silinen = tekrarli_metni_temizle([a, b])
+        self.assertEqual(len(sonuc), 2)
+        self.assertEqual(silinen, 0)
+
+    def test_ayni_yerde_farkli_metin_silinmez(self):
+        a = blok(1, 100, 130, "Fotosentez bitkilerde gerçekleşir.\n")
+        b = blok(1, 100, 130, "Solunum hücrelerde gerçekleşir.\n")
+        sonuc, _ = tekrarli_metni_temizle([a, b])
+        self.assertEqual(len(sonuc), 2)
+
+    def test_kisa_ve_farkli_satirlar_korunur(self):
+        # şık işaretleri kısa ve birbirine benzer ama kopya değil; art arda benzer olmayan satırlar da kalır
+        b = blok(1, 100, 200, "a)\na)\nKuvvet birimi newtondur.\nKütle birimi kilogramdır.\n")
+        sonuc, silinen = tekrarli_metni_temizle([b])
+        self.assertEqual(silinen, 0)
+        self.assertEqual(sonuc[0].metin, b.metin)
+
+    def test_tekrar_yoksa_bloklar_degismez(self):
+        bloklar = [blok(1, 100, 160, "Birinci paragraf metni burada.\n"), blok(1, 200, 260, "İkinci paragraf başka.\n")]
+        sonuc, silinen = tekrarli_metni_temizle(bloklar)
+        self.assertEqual(sonuc, bloklar)
+        self.assertEqual(silinen, 0)
 
 
 if __name__ == "__main__":

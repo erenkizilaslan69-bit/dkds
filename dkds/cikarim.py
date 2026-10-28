@@ -13,7 +13,7 @@ try:
 except ImportError:  # eski sürümler yalnızca "fitz" adıyla gelir
     import fitz
 
-from .duzen import bolunmus_paragraflari_birlestir, ust_alt_bilgi_temizle
+from .duzen import bolunmus_paragraflari_birlestir, tekrarli_metni_temizle, ust_alt_bilgi_temizle
 from .models import Blok, CikarimSonucu, Paragraf
 from .siniflandirma import sayfa_turleri
 from .temizleme import dolgu_mu, harf_iceriyor_mu, kodlama_bozuk_mu, kodlamayi_onar, temizle
@@ -87,15 +87,24 @@ def pdf_oku(yol: str | Path, ocr: bool = True, dil: str = "tur") -> CikarimSonuc
     sayfalar: dict[int, list[Blok]] = {}
     yukseklikler: dict[int, float] = {}
     ocr_sayfalari: set[int] = set()
+    tekrarli_sayfalar: list[int] = []
 
     with fitz.open(yol) as doc:
         sayfa_sayisi = doc.page_count
         for i, sayfa in enumerate(doc, start=1):
             bloklar, ocr_oldu = _sayfa_bloklari(sayfa, i, ocr, dil, uyarilar)
+            bloklar, silinen = tekrarli_metni_temizle(bloklar)
+            if silinen:
+                tekrarli_sayfalar.append(i)
             sayfalar[i] = bloklar
             yukseklikler[i] = sayfa.rect.height
             if ocr_oldu:
                 ocr_sayfalari.add(i)
+
+    if tekrarli_sayfalar:
+        gosterilen = ", ".join(str(s) for s in tekrarli_sayfalar[:20]) + (" ..." if len(tekrarli_sayfalar) > 20 else "")
+        uyarilar.append(f"{len(tekrarli_sayfalar)} sayfada metin iki kez (kopya katman) bulunuyordu; tekrar eden "
+                        f"parçalar çıkarıldı (sayfa {gosterilen}).")
 
     sayfalar = ust_alt_bilgi_temizle(sayfalar, yukseklikler)
 

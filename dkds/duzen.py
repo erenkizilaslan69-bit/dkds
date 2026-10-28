@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from dataclasses import replace
+from difflib import SequenceMatcher
 
 from .models import Blok
 
@@ -131,3 +133,85 @@ def bolunmus_paragraflari_birlestir(bloklar: list[Blok]) -> list[Blok]:
         else:
             sonuc.append(b)
     return sonuc
+
+
+# ------------------------------------------------------------------ tekrarlı metin katmanı
+
+# Bazı sayfalarda aynı metin PDF'e iki kez konmuş (gizli ya da kaydırılmış kopya katman):
+# döndürülmüş "Bu temada" kutuları (turkce5.pdf s.68, 122), şema kutuları (sosyalbilgiler5.pdf
+# s.142). Çıkarım sırasında ikisi iç içe geçer ve cümleler iki kez okunur.
+SATIR_BENZERLIGI = 0.85  # art arda iki satırın benzerlik oranı bu değeri geçerse ikincisi kopyadır
+BLOK_BENZERLIGI = 0.8
+KUTU_ORTUSMESI = 0.7  # küçük kutunun bu kadarı büyük kutunun içinde kalıyorsa aynı yerdedirler
+EN_AZ_IMZA = 4  # bundan kısa satırlar ("a)", "1.") kopya sayılmaz; tablo hücreleri gibi gerçek tekrarlar olabilir
+
+
+def _imza(metin: str) -> str:
+    """Karşılaştırma için yalnızca harf ve rakamlar (tire, boşluk ve noktalama yok sayılır)."""
+    return "".join(k for k in metin.casefold() if k.isalnum())
+
+
+def _benzer_mi(a: str, b: str, esik: float) -> bool:
+    if a == b:
+        return True
+    return SequenceMatcher(None, a, b).ratio() >= esik
+
+
+def _tekrar_satirlari_cikar(blok: Blok) -> tuple[Blok, int]:
+    """Bloktaki, kendinden hemen önceki satırın kopyası olan satırları siler."""
+    kalan: list[str] = []
+    son_imza = ""
+    silinen = 0
+    for satir in blok.metin.split("\n"):
+        imza = _imza(satir)
+        if len(imza) >= EN_AZ_IMZA and len(son_imza) >= EN_AZ_IMZA and _benzer_mi(son_imza, imza, SATIR_BENZERLIGI):
+            silinen += 1
+            continue
+        kalan.append(satir)
+        if imza:
+            son_imza = imza
+    if not silinen:
+        return blok, 0
+    return replace(blok, metin="\n".join(kalan)), silinen
+
+
+def _kutu_ortusmesi(a: Blok, b: Blok) -> float:
+    """Kesişim alanının küçük kutunun alanına oranı."""
+    en = max(0.0, min(a.x1, b.x1) - max(a.x0, b.x0))
+    boy = max(0.0, min(a.y1, b.y1) - max(a.y0, b.y0))
+    kucuk = min((a.x1 - a.x0) * (a.y1 - a.y0), (b.x1 - b.x0) * (b.y1 - b.y0))
+    return en * boy / kucuk if kucuk > 0 else 0.0
+
+
+def tekrarli_metni_temizle(bloklar: list[Blok]) -> tuple[list[Blok], int]:
+    """Aynı sayfada iki kez bulunan metni (kopya katman) çıkarır; (bloklar, silinen parça) döndürür.
+
+    İki aşama:
+      1. Blok içinde art arda gelen benzer satırlar: kopya katman satır satır iç içe geçer.
+      2. Başka bir bloğun neredeyse aynı yerinde duran, metni benzer ikinci blok silinir
+         (ilk gelen kalır). Aynı konumda olmayan tekrarlar (tablo hücrelerindeki "Evet")
+         silinmez.
+    """
+    silinen = 0
+    satirlari_temiz: list[Blok] = []
+    for b in bloklar:
+        yeni, n = _tekrar_satirlari_cikar(b)
+        satirlari_temiz.append(yeni)
+        silinen += n
+
+    sonuc: list[Blok] = []
+    imzalar: list[str] = []
+    for b in satirlari_temiz:
+        imza = _imza(b.metin)
+        kopya = False
+        if imza:
+            for diger, diger_imza in zip(sonuc, imzalar):
+                if _kutu_ortusmesi(b, diger) >= KUTU_ORTUSMESI and _benzer_mi(imza, diger_imza, BLOK_BENZERLIGI):
+                    kopya = True
+                    break
+        if kopya:
+            silinen += 1
+            continue
+        sonuc.append(b)
+        imzalar.append(imza)
+    return sonuc, silinen
