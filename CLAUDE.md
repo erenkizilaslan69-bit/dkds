@@ -190,53 +190,82 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   ("ETKİNLİK a.a. …" etiketleri dahil) ile öğrenci örnek metinleri ölçüme giriyor; kopya katman
   temizliği yalnızca aynı yerde duran ve benzer metinleri yakalar.
 
-## Tutarlılık analizörü notları (kriter 3, ilk sürüm: kural tabanlı, yalnızca tarih)
+## Tutarlılık analizörü notları (kriter 3, kural tabanlı: tarih ve birimli sayısal olgular)
 
-- `dkds/analiz/tutarlilik.py`, `python -m dkds analiz` içinde her çalıştırmada koşar (sınıf gerekmez),
-  bulgu `kriter="tutarlilik"`, `tur="tarih_celiskisi"`. `Bulgu`ya isteğe bağlı `ilgili_sayfa`,
-  `ilgili_paragraf`, `ilgili_konum` eklendi (çelişen diğer yer). LLM henüz yok.
-- **Olgu:** "MÖ 7500", "M.Ö. 7500", "MS 1071", "MÖ 10000 yıllarında", "9 500 yıl önce", "12.000 yıl önce",
-  "yaklaşık 12 bin yıl önce", aralık ("11.500-12.000 yıl önce", "MÖ 3000-2000"). Yaklaşık sayılanlar:
-  "yaklaşık", "civarında", "yıllarında", "MÖ 5000'lerde". Yüzyıl ("MÖ 7. yüzyıl") ve 100'den küçük
-  "yıl önce" değerleri olgu değildir. Normalleştirme: günümüzden-yıl-önce, MÖ yıl + referans yıl
-  (varsayılan 2000, kitabın s.112 kuralı; parametre), MS yıl için referans yıl - yıl.
-- **Varlık:** aynı cümledeki en yakın özel isim (en çok 80 karakter; kesme sonrası ek atılır; yan yana
-  büyük harfli sözcükler öbek: "Karain Mağarası"; cümle başındaki sözcük kitapta küçük harfle de
-  geçiyorsa sıradan sözcüktür). Ay/gün adları ve genel bölge/dönem adları (Anadolu, Mezopotamya,
-  Neolitik, Türkiye...) varlık sayılmaz. Bulunamazsa olgu karşılaştırmaya katılmaz.
-- **Karşılaştırma:** aynı varlığın farklı sayfalardaki olguları aralık olarak karşılaştırılır. Tolerans:
-  yaklaşık değerde yazılan sayının yuvarlama basamağının yarısı (9000 → ±500, 9500 → ±50, 12 bin → ±500;
-  "MÖ 10000 yıllarında" en çok ±500), kesin değerde 0. Fark ≥ iki toleransın toplamı ise aday
-  (sınır dahil). Güven: yaklaşık değer varsa fark/tolerans 1'de 0,45, 4'te 0,75; iki değer de kesinse
-  göreli farka göre 0,65-0,90. Aynı sayfadaki farklar aday değildir. Bulgu, küçük kümenin olgusuna yazılır.
-- **Sonuç (6 kitap):**
+- `dkds/analiz/tutarlilik.py` + `sayilar.py`, `python -m dkds analiz` içinde her çalıştırmada koşar (sınıf
+  gerekmez). Bulgu `kriter="tutarlilik"`, `tur="tarih_celiskisi"` / `"sayisal_celiski"`; `Bulgu`da isteğe
+  bağlı `ilgili_sayfa`, `ilgili_paragraf`, `ilgili_konum` (çelişen diğer yer). JSON'da `tutarlilik_ozeti` ve
+  `tutarlilik_belirsiz` (LLM'e gidecek çiftler). LLM henüz yok.
+- **Tarih olgusu:** "MÖ 7500", "M.Ö. 7500", "MS 1071", "MÖ 10000 yıllarında", "9 500 yıl önce", "12.000 yıl önce",
+  "yaklaşık 12 bin yıl önce", "on bin yıl önce", aralık. Yaklaşık: "yaklaşık", "civarında", "yıllarında",
+  "MÖ 5000'lerde". Günümüzden-yıl-önce: MÖ yıl + referans yıl (varsayılan 2000, kitabın s.112 kuralı),
+  MS için referans yıl - yıl. Yüzyıl ve 100'den küçük "yıl önce" olgu değil.
+- **Sayısal olgu** (`sayilar.py`): zaman (saniye/dakika/saat/gün/hafta/yıl; "365 gün 6 saat" bileşik, yıl=365,25
+  gün), uzunluk (mm/cm/m/km, "384.000 km", "1 milyon km"), sıcaklık (°C/⁰C/ºC, "-174 ⁰C"), kütle (g/kg/ton),
+  kuvvet (N), yüzde ("%71", "yüzde 71"). Hepsi ortak tabana (saniye, metre, gram, N, °C, %) çevrilir.
+  Yazıyla sayılar ("yirmi dört saat", "on bin yıl") rakama çevrilir (tek başına "bir" sayı değil; "12 bin"deki
+  "bin" çarpan). Ölçü değil: "15 Nisan", "2024 günü", "100 km/saat", "50 m²", "45 derece açı". Tolerans: tüm
+  ölçülerde %1 (384.000 ~ 384.400 yuvarlama farkı çelişki değil), yaklaşık olanda yuvarlama basamağının yarısı
+  eklenir; tarihte yaklaşık değer ±(yuvarlama birimi/2) (9000 → ±500; "MÖ 10000 yıllarında" en çok ±500), kesinde 0.
+- **Varlık:** aynı cümledeki en yakın özel isim (en çok 80 karakter; ölçülerde en yakın iki isim, tarihte tek).
+  Kesme eki atılır; yan yana büyük harfli sözcükler öbek ("Karain Mağarası") ve öbek son sözcüğüyle de eşleşir
+  ("Sümer Kralı Urukagina" ~ "Urukagina"; son sözcük genel adsa mağarası/höyüğü/kralı... eşleşmez). Cümle başındaki
+  büyük harfli sıradan sözcük ("Çemberimsi", "Bundan") isim değil: kesme eki, virgül/noktalı virgül/parantez,
+  öbek, kitapta cümle ortasında da büyük harfle geçme ya da kısa etiket gerekir. "Ay" iki harfli ama varlık.
+  Ay/gün adları, form etiketleri ("Süre : 40 dk"), BÜYÜK HARFLİ başlık sözcükleri isim değil; Dünya/Türkiye/
+  Anadolu gibi genel adlar yalnızca tarihte elenir. Harita/şema etiket paragrafları ve etkinlik künyeleri
+  ("Adı … Amaç … Süre 80 dk") ölçü olgusu sayılmaz.
+- **Olgu anahtarı = varlık + nicelik türü + ayırıcı + bağlam.** Tür: sıcaklık/kütle/kuvvet/oran sabit; uzunlukta
+  çap, yarıçap, uzaklık, yükseklik, derinlik, uzunluk...; zamanda dönme, dolanma, ömür, süre (en yakın sözcük).
+  Ayırıcı: gece, gündüz, ortalama, kış, kutup, ekvator, yüzey, en yüksek/en düşük... (değerden önce geldiği için
+  izleyen ilk ölçüye bağlanır: "gece -174 ⁰C, gündüz ise 125 ⁰C"). Bağlam: çevredeki içerik sözcüklerinin ilk 5
+  harfi (Jaccard ≥ 0,1). Koşul ölçüsü: aynı cümledeki diğer boyuttaki ölçüler ("60 kg kütleli cismin ağırlığı
+  100 N"); yalnızca birinde varsa ya da farklıysa çift belirsiz.
+- **Karşılaştırma:** aynı varlık ve boyutta, değerleri toleransı aşan, farklı sayfalardaki iki olgu:
+  tür ya da ayırıcı farklı → farklı nicelik (sayılmaz); tür aynı + ayırıcı aynı + koşullar uyumlu + bağlam benzer
+  → **aday çelişki**; emin olunamıyorsa → **belirsiz** (tür belli değil, ayırıcı yalnızca birinde, koşul farklı,
+  bağlam benzemiyor; ayrıca varlığı bulunamayan ama bağlamı benzeyen çiftler: güçlü = Jaccard ≥ 0,25 ve ≥ 2 ortak
+  kök, zayıf = ≥ 0,15 ve ≥ 1). Tarihte varlık yeterli; olay türü (başlangıç: kuruldu/inşa / bitiş: terk edildi)
+  ikisinde de belli ve farklıysa ayrı olay. Güven: fark/tolerans 1'de 0,45, 4'te 0,75; ölçüde bağlam benzerliğiyle
+  hafif azalır.
+- **Sonuç (6 kitap, 4.11.2026):**
 
-  | kitap | tarih olgusu | varlıkla eşleşen | aday çelişki |
-  |---|---|---|---|
-  | fen3 | 0 | 0 | 0 |
-  | fen5 | 0 | 0 | 0 |
-  | fen7 | 0 | 0 | 0 |
-  | biyoloji9 | 1 | 0 | 0 |
-  | sosyalbilgiler5 | 18 | 12 | 1 |
-  | turkce5 | 0 | 0 | 0 |
+  | kitap | olgu (tarih+sayısal) | varlıkla eşleşen | aday çelişki | belirsiz (zayıf) |
+  |---|---|---|---|---|
+  | fen3 | 15 (0+15) | 2 | 0 | 2 (1) |
+  | fen5 | 47 (0+47) | 22 | 0 | 14 (5) |
+  | fen7 | 29 (0+29) | 10 | 0 | 0 |
+  | biyoloji9 | 59 (1+58) | 8 | 0 | 0 |
+  | sosyalbilgiler5 | 45 (19+26) | 29 | 1 | 0 |
+  | turkce5 | 7 (0+7) | 0 | 0 | 0 |
 
-  Fen ve Türkçe kitaplarında ham metin de taranıp kaçırılan biçim olmadığı görüldü (tek olgu biyoloji9
-  s.157 "yaklaşık 10 000 yıl önce", varlıksız). Yani bu ilk sürümün asıl sınaması sosyal5'tir.
-- **Aday kontrolü (basılı sayfayla, 4.11.2026):** tek aday gerçek ve eşleştirme doğru: Çatalhöyük
-  s.118 "yaklaşık 9000 yıl önce kurulmuştur" ↔ s.112 "Çatalhöyük (MÖ 7500)" (= 9.500) ve s.147 "Bundan
-  9 500 yıl önce" (üçü de kuruluş/ilk yerleşme, farklı olay değil). Güven 0,45: fark 500 yıl, "yaklaşık
-  9000" ≈ 8500-9500 aralığının tam sınırı; yani yuvarlamayla savunulabilir. s.118 metni tırnak içinde
-  dış kaynak alıntısıdır. Göbeklitepe (s.112, 114) ve Karahantepe (s.128) bulgu üretmedi.
-- **Bilinen sınırlar:** (1) Eşleştirme: s.114 "Çemberimsi anıtsal yapılar, MÖ 8000 civarında" cümle
-  başındaki sıradan sözcüğü varlık sayıyor (doğrusu Göbeklitepe yapıları); s.131 "Sümer Kralı
-  Urukagina" öbeği başka yerdeki "Urukagina"yla eşleşmez; s.105 "500 bin yıl önce" ve s.113 "MÖ 10 000
-  yıllarında" cümlede isim olmadığı için varlıksız kalır. (2) Yazıyla sayılar ("on bin yıl"), yalın
-  yıllar ("1071'de"), yüzyıllar ve "MÖ 2000 yılından önce" kalıbı olgu sayılmaz. s.120 "MÖ. 10'lerde"
-  büyük olasılıkla çıkarım/baskı sorunu ve MÖ 10 olarak okunur. (3) Aynı varlığın farklı olayları
-  (kuruluş / terk: Göbeklitepe MÖ 10000 ↔ MÖ 8000) ayırt edilmez; bugün eşleştirme hatası sayesinde
-  çelişki çıkmıyor, varlık eşleşmesi düzelirse çıkacaktır. (4) MS için referans yıl 2000 kullanıldığından
-  "MS 1071" = 929 yıl önce (gerçek 954). (5) Tek aday olduğundan kesinlik (precision) ve duyarlılık
-  (recall) ölçülemez; hata yerleştirilmiş test seti (hafta 12) gerekir.
+  Tarih olgusu çıkmayan fen/Türkçe kitaplarında sayısal olgu çıktı (202 olgunun 71'i, yani %35'i varlıkla
+  eşleşti; geri kalanı "Bu dönme hareketi…", "Yılanlar…" gibi adsız ya da çoğul özneli cümleler).
+- **Aday kontrolü (basılı sayfayla):** tek aday gerçek çelişki ve eşleştirme doğru: Çatalhöyük s.118 "yaklaşık
+  9000 yıl önce" ↔ s.112 "MÖ 7500" (=9.500) ve s.147 "9 500 yıl önce"; üçü de kuruluş/ilk yerleşme, güven 0,45
+  (fark 500 yıl, yuvarlamanın tam sınırı; s.118 tırnak içi dış kaynak alıntısı). Göbeklitepe (s.112, 114) ve
+  Karahantepe bulgu üretmedi.
+- **En sık hata nedenleri (geliştirme sırasında çıkan 7 farklı aday: 1 gerçek, 6 sahte):** (1) **eşleştirme
+  hatası, etkinlik künyesi:** "Adı … Amaç Çevresindeki … Süre 80 dk" ve "Süre : 40 dk" cümlelerinde "Süre"/"Çevresindeki"
+  varlık sanıldı → 4 sahte aday (biyoloji9); çözüm: künye/etiket paragrafları ölçü dışı, form etiketi varlık değil.
+  (2) **farklı nesne:** fen5 s.76 "60 kg'lık cismin ağırlığı Ay'da 100 N" ile s.93 başka cismin "Ay'da 60 N"si →
+  koşul ölçüsü kuralıyla belirsiz. (3) **kod hatası:** "12 bin yıl önce"deki "bin" yazıyla sayı sanılıp Göbeklitepe
+  için sahte 11.000 yıllık fark üretti; giderildi (test var). (4) ayırıcı yanlış bağlama: "gece -174, gündüz ise 125"
+  cümlesinde "gündüz" -174'e atanıyordu; izleyen ilk ölçüye bağlanarak düzeltildi.
+- **Belirsiz örnekleri (JSON `tutarlilik_belirsiz`; toplam 16, güçlü 10):** fen5 s.49 "Bu dolanma hareketi yaklaşık 365
+  gün 6 saatte tamamlanır" ↔ s.50 "Dünya, dolanma hareketini 24 saatte tamamlar" (varlık s.49'da zamirle
+  verilmiş; gerçek çelişki olabilir, alıştırmada yanlış ifade de olabilir); fen5 s.20 "Ay'ı 30 gün boyunca gözleyin" ↔
+  s.49 "Ay'ın dönme hareketi yaklaşık 27 gün 8 saatte" (tür belli değil; farklı nicelik); fen3 s.79 "Yılanlar 10 ila 15 yıl
+  yaşar" ↔ s.80 "Kaplumbağalar yaklaşık 80 yıl yaşar" (farklı hayvan; özne çoğul ve sözcük cümle başında olduğu
+  için varlıksız); fen5 s.66-67-70 dinamometre alıştırmalarındaki 3/10/30/50/70/80 N değerleri (farklı sorular; gösterilen 10
+  çiftin 4'ü bu gürültü).
+- **Bilinen sınırlar:** (1) Zamirli ya da çoğul/sıradan özneli cümleler ("Bu dönme hareketi…", "Yılanlar…") varlıksız;
+  anafora çözülmüyor. (2) Cümlede birden çok varlık varsa ("Dünya ve Ay, Güneş etrafındaki…") yalnızca en yakın
+  (ölçüde en yakın iki) isim alınır. (3) Tür sözlüğü küçük (zaman ve uzunlukta 12 tür); tür bulunamazsa çift
+  belirsiz olur. (4) Aynı varlığın farklı olayları yalnızca başlangıç/bitiş ayrımıyla ayrılıyor. (5) s.114
+  "Çemberimsi anıtsal yapılar, MÖ 8000 civarında…" artık varlıksız kalıyor (doğrusu Göbeklitepe yapıları).
+  (6) MS için referans yıl 2000 ("MS 1071" = 929 yıl önce, gerçek 954). (7) Yalnızca tek aday bulunduğundan
+  kesinlik (precision) ve duyarlılık (recall) ölçülemez; hata yerleştirilmiş test seti (hafta 12) gerekir.
 
 ## Yazım analizörü notları
 
