@@ -5,13 +5,16 @@
 import unittest
 
 from dkds.analiz.tutarlilik import (
+    Olgu,
     TarihOlgusu,
     TutarlilikAnalizoru,
     celisiyor_mu,
     en_yakin_varlik,
     guven_hesapla,
     olgulari_bul,
+    kosullar_uyumlu_mu,
     sayi_oku,
+    varlik_anahtarlari,
 )
 from dkds.models import Paragraf
 
@@ -243,6 +246,216 @@ class AnalizTest(unittest.TestCase):
         s = TutarlilikAnalizoru(referans_yili=2025).incele(kitap((112, S112), (118, S118)))
         self.assertEqual(len(s.bulgular), 1)
         self.assertIn("9.525 yıl önce", s.bulgular[0].aciklama)  # MÖ 7500 + 2025
+
+
+class YaziylaSayiTarihTest(unittest.TestCase):
+    def test_yazili_yil_once_tarih_olgusudur(self):
+        self.assertEqual(tek("Bu eserler on bin yıl önce yapıldı")[:3], (10000, 10000, False))
+
+    def test_yazili_sayi_konumu_ozgun_cumlede_kalir(self):
+        cumle = "Bu eserler on bin yıl önce yapıldı"
+        bas, son, *_ = olgulari_bul(cumle)[0]
+        self.assertEqual(cumle[bas:son], "on bin yıl önce")
+
+
+class VarlikDuzeltmeTest(unittest.TestCase):
+    def varlik(self, cumle, ifade, orta=frozenset(), kisa=False, tarih=True, sozcukler=frozenset()):
+        bas = cumle.index(ifade)
+        return en_yakin_varlik(cumle, bas, bas + len(ifade), sozcukler, orta, kisa, tarih)
+
+    def test_cumle_basindaki_siradan_sozcuk_isim_degildir(self):
+        # s.114: "Çemberimsi anıtsal yapılar, MÖ 8000 civarında ... terk edilmiştir"
+        cumle = "Çemberimsi anıtsal yapılar, MÖ 8000 civarında terk edilmiştir."
+        self.assertIsNone(self.varlik(cumle, "MÖ 8000 civarında", orta=frozenset()))
+
+    def test_cumle_basindaki_isim_kitapta_ortada_buyukse_kalir(self):
+        cumle = "Hacılar yerleşimi MÖ 7000 yıllarında kurulmuştur."
+        self.assertIsNone(self.varlik(cumle, "MÖ 7000 yıllarında", orta=frozenset()))
+        self.assertEqual(self.varlik(cumle, "MÖ 7000 yıllarında", orta=frozenset({"hacılar"})), "Hacılar")
+
+    def test_cumle_basinda_kesmeli_parantezli_ve_obek_isim_kalir(self):
+        self.assertEqual(self.varlik("Karahantepe'de 11.500 yıl önce insanlar yaşadı.", "11.500 yıl önce",
+                                     orta=frozenset()), "Karahantepe")
+        self.assertEqual(self.varlik("Çayönü (MÖ 8200) bir yerleşimdir.", "MÖ 8200", orta=frozenset()), "Çayönü")
+        self.assertEqual(self.varlik("Karain Mağarası MÖ 600 000 yıllarında kullanıldı.", "MÖ 600 000 yıllarında",
+                                     orta=frozenset()), "Karain Mağarası")
+
+    def test_kisa_etiket_paragrafinda_cumle_basi_isim_kalir(self):
+        self.assertEqual(self.varlik("Göbeklitepe MÖ 10000", "MÖ 10000", orta=frozenset(), kisa=True), "Göbeklitepe")
+
+    def test_ay_iki_harfli_olsa_da_varliktir(self):
+        cumle = "Ay’da sıcaklık gece -174 ⁰C’u bulabilmektedir."
+        self.assertEqual(self.varlik(cumle, "-174 ⁰C’u", orta=frozenset(), tarih=False, sozcukler=frozenset({"ay"})), "Ay")
+
+    def test_genel_bolge_adi_yalnizca_tarihte_elenir(self):
+        cumle = "Dünya, kendi ekseni etrafında 24 saatte döner."
+        self.assertIsNone(self.varlik(cumle, "24 saatte", tarih=True, sozcukler=frozenset()))
+        self.assertEqual(self.varlik(cumle, "24 saatte", tarih=False, sozcukler=frozenset()), "Dünya")
+
+    def test_form_etiketi_ve_baslik_harfleri_isim_degildir(self):
+        self.assertIsNone(self.varlik("Süre : 40 dk", "40 dk", tarih=False))
+        self.assertIsNone(self.varlik("İSTİRAHAT 10-15 dakika", "10-15 dakika", tarih=False, orta=frozenset()))
+
+    def test_obek_son_sozcukle_eslesir(self):
+        self.assertEqual(varlik_anahtarlari("Sümer Kralı Urukagina"), ("sümer kralı urukagina", "urukagina"))
+        self.assertEqual(varlik_anahtarlari("Göbeklitepe"), ("göbeklitepe",))
+
+    def test_genel_son_sozcuk_eslesme_anahtari_olmaz(self):
+        self.assertEqual(varlik_anahtarlari("Karain Mağarası"), ("karain mağarası",))
+        self.assertEqual(varlik_anahtarlari("Şarklı Keper Mağarası"), ("şarklı keper mağarası",))
+
+
+S131 = "Sümer Kralı Urukagina’nın MÖ 2375’te hazırlattığı kanunlar, tarihte bilinen ilk yazılı kanunlar olmuştur."
+
+
+class ObekEslesmeTest(unittest.TestCase):
+    def test_obek_baska_yerdeki_kisa_adla_eslesir(self):
+        s = TutarlilikAnalizoru().incele(kitap((131, S131), (140, "Bu dönemde Urukagina MÖ 2400’de krallık yaptı.")))
+        self.assertEqual([(b.sayfa, b.ilgili_sayfa) for b in s.bulgular], [(140, 131)])
+
+    def test_farkli_magaralar_karismaz(self):
+        s = TutarlilikAnalizoru().incele(kitap(
+            (113, "Şarklı Keper Mağarası’nın MÖ 600 000 yıllarında kullanıldığı düşünülmektedir."),
+            (105, "Karain Mağarası MÖ 500 000 yıllarında kullanıldı.")))
+        self.assertEqual(s.bulgular, [])
+
+
+def paragraf_tur(metin, sayfa, tur="govde", no=1):
+    return Paragraf(sayfa=sayfa, paragraf=no, metin=metin, konum=(50.0, 100.0 * no, 500.0, 100.0 * no + 40), tur=tur)
+
+
+AY_SICAKLIK = "Ay’da sıcaklık gece -174 ⁰C’u, gündüz ise 125 ⁰C’u bulabilmektedir."
+
+
+class SayisalCelismeTest(unittest.TestCase):
+    def incele(self, *sayfa_metin):
+        return TutarlilikAnalizoru().incele(kitap(*sayfa_metin))
+
+    def test_gece_ve_gunduz_sicakligi_karismaz(self):
+        # s.35'te gece -174, gündüz 125; başka sayfada "Ay’da gündüz sıcaklık 127": gündüz-gündüz tutarlı,
+        # gece-gündüz çiftleri farklı nicelik
+        s = self.incele((35, AY_SICAKLIK), (40, "Ay’da gündüz sıcaklık 127 ⁰C’ye ulaşır."))
+        self.assertEqual(s.bulgular, [])
+        self.assertEqual(s.belirsizler, [])
+        self.assertGreaterEqual(s.ozet["farkli_nicelik"], 1)
+
+    def test_ayni_ayirici_ve_tur_ise_aday(self):
+        s = self.incele((35, AY_SICAKLIK), (40, "Ay’da sıcaklık gece -150 ⁰C’ye düşer."))
+        self.assertEqual(len(s.bulgular), 1)
+        b = s.bulgular[0]
+        self.assertEqual((b.kriter, b.tur), ("tutarlilik", "sayisal_celiski"))
+        self.assertEqual({b.sayfa, b.ilgili_sayfa}, {35, 40})
+        self.assertIn("«Ay»", b.aciklama)
+        self.assertIn("ayırıcı: gece", b.aciklama)
+        self.assertIn("-174 °C", b.aciklama)
+        self.assertTrue(0.4 <= b.guven <= 0.8, b.guven)
+
+    def test_yuvarlama_farki_celisme_degildir(self):
+        s = self.incele((34, "Ay’ın Dünya’ya uzaklığı 384.400 km kadardır."),
+                        (60, "Ay’ın Dünya’ya uzaklığı 384.000 km civarındadır."))
+        self.assertEqual(s.bulgular, [])
+
+    def test_ayni_uzaklik_farkli_deger_aday(self):
+        s = self.incele((34, "Ay’ın Dünya’ya uzaklığı 384.400 km kadardır."),
+                        (60, "Ay’ın Dünya’ya uzaklığı 150.000 km olarak verilmiştir."))
+        self.assertEqual(len(s.bulgular), 1)
+        self.assertIn("tür: uzaklık", s.bulgular[0].aciklama)
+
+    def test_farkli_nicelik_turu_aday_degildir(self):
+        s = self.incele((34, "Ay’ın Dünya’ya uzaklığı 384.400 km kadardır."),
+                        (60, "Ay’ın çapı 3.474 km uzunluğundadır."))
+        self.assertEqual(s.bulgular, [])
+        self.assertEqual(s.belirsizler, [])
+        self.assertEqual(s.ozet["farkli_nicelik"], 1)
+
+    def test_tur_belli_degilse_belirsiz(self):
+        s = self.incele((20, "Performans görevi olarak Ay’ı 30 gün boyunca gözlemleyiniz."),
+                        (49, "Ay’ın dönme hareketi yaklaşık 27 gün 8 saatte tamamlanır."))
+        self.assertEqual(s.bulgular, [])
+        self.assertEqual(len(s.belirsizler), 1)
+        self.assertEqual(s.belirsizler[0].neden, "nicelik türü belli değil")
+
+    def test_ayirici_yalnizca_birinde_belirsiz(self):
+        s = self.incele((35, "Ay’da sıcaklık gece -174 ⁰C’u bulabilir."), (40, "Ay’da sıcaklık -150 ⁰C’dir."))
+        self.assertEqual(s.bulgular, [])
+        self.assertEqual(len(s.belirsizler), 1)
+        self.assertIn("ayırıcı yalnızca birinde (gece)", s.belirsizler[0].neden)
+
+    def test_kosul_olcusu_farkliysa_belirsiz(self):
+        # s.76: "60 kg kütleli cismin ağırlığı Ay'da 100 N"; s.93: başka bir cismin ağırlığı Ay'da 60 N
+        s = self.incele((76, "Örneğin 60 kg kütleli bir cismin ağırlığı Dünya’da yaklaşık 600 N ölçülürken Ay’da 100 N ölçülür."),
+                        (93, "Ay’da 60 N ağırlığında olan bir cismin ağırlığı Dünya’da kaç N’dır?"))
+        self.assertEqual(s.bulgular, [])
+        self.assertTrue(any("koşul" in b.neden for b in s.belirsizler), [b.neden for b in s.belirsizler])
+
+    def test_composit_zaman_dolanma(self):
+        s = self.incele((49, "Dünya, Güneş etrafındaki dolanma hareketini yaklaşık 365 gün 6 saatte tamamlar."),
+                        (56, "Dünya, Güneş etrafındaki dolanma hareketini 24 saatte tamamlar."))
+        self.assertEqual(len(s.bulgular), 1)
+        self.assertEqual(s.bulgular[0].tur, "sayisal_celiski")
+
+    def test_yaziyla_sayi_olcu_olgusudur(self):
+        s = self.incele((49, "Dünya kendi ekseni etrafındaki dönme hareketini yirmi dört saatte tamamlar."),
+                        (56, "Dünya kendi ekseni etrafındaki dönme hareketini 24 saatte tamamlar."))
+        sicakliklar = [o for o in s.olgular if o.boyut == "zaman"]
+        self.assertEqual([o.alt for o in sicakliklar], [86400, 86400])
+        self.assertEqual(s.bulgular, [])
+
+    def test_olgu_ifadesi_ozgun_yazilisla_gosterilir(self):
+        s = self.incele((49, "Dünya kendi ekseni etrafındaki dönme hareketini yirmi dört saatte tamamlar."))
+        self.assertEqual(s.olgular[0].ifade, "yirmi dört saatte")
+
+    def test_ayni_sayfadaki_farklar_aday_degildir(self):
+        s = self.incele((35, "Ay’da sıcaklık gece -174 ⁰C’u bulabilir. Ay’da sıcaklık gece -100 ⁰C’dir."))
+        self.assertEqual(s.bulgular, [])
+
+    def test_etiket_paragrafindaki_olculer_alinmaz(self):
+        s = TutarlilikAnalizoru().incele([paragraf_tur("Burdur G. ( 854 m. )", 54, tur="etiket")])
+        self.assertEqual(s.olgular, [])
+
+    def test_kunye_paragrafindaki_sure_alinmaz(self):
+        kunye = "Adı Canlıların Sınıflandırılması Amaç Çevresindeki canlıları sınıflandırabilme Süre 80 dk."
+        s = TutarlilikAnalizoru().incele([paragraf_tur(kunye, 126), paragraf_tur(kunye.replace("80", "40"), 128)])
+        self.assertEqual((s.olgular, s.bulgular, s.belirsizler), ([], [], []))
+
+    def test_varliksiz_benzer_olgular_belirsiz_ve_zayif_ayrimi(self):
+        s = self.incele((49, "Bu dönme hareketi 24 saatte tamamlanır."),
+                        (50, "Dünya dolanma hareketini yaklaşık 365 gün 6 saatte tamamlar; bu hareket tamamlanır."))
+        # tür her ikisinde belirli (dönme / dolanma farklı): aynı nicelik değil -> belirsiz bile değil
+        self.assertEqual(s.bulgular, [])
+
+    def test_belirsiz_sozluk_llm_icin_iki_ifadeyi_tasir(self):
+        s = self.incele((20, "Performans görevi olarak Ay’ı 30 gün boyunca gözlemleyiniz."),
+                        (49, "Ay’ın dönme hareketi yaklaşık 27 gün 8 saatte tamamlanır."))
+        d = s.belirsizler[0].sozluk()
+        self.assertEqual((d["sayfa_1"], d["sayfa_2"], d["varlik"], d["guc"]), (20, 49, "Ay", "guclu"))
+        self.assertEqual((d["ifade_1"], d["ifade_2"]), ("30 gün", "yaklaşık 27 gün 8 saatte"))
+        self.assertIn("cumle_1", d)
+
+    def test_ozet_alanlari(self):
+        s = self.incele((35, AY_SICAKLIK), (40, "Ay’da sıcaklık gece -150 ⁰C’ye düşer."), (112, S112))
+        o = s.ozet
+        self.assertEqual(o["olgu_sayisi"], o["tarih_olgusu"] + o["sayisal_olgu"])
+        self.assertEqual((o["tarih_olgusu"], o["sayisal_olgu"]), (5, 3))
+        self.assertEqual((o["aday_tarih"], o["aday_sayisal"], o["aday_celiski"]), (0, 1, 1))
+        self.assertIn("belirsiz_zayif", o)
+
+
+class KosulTest(unittest.TestCase):
+    def olgu_kosullu(self, kosullar):
+        return Olgu(sayfa=1, paragraf=1, konum=(0, 0, 1, 1), ifade="x", alt=1, ust=1, yaklasik=False, tolerans=0,
+                    cumle="x", kosullar=kosullar)
+
+    def test_koşulsuz_iki_olgu_uyumludur(self):
+        self.assertTrue(kosullar_uyumlu_mu(self.olgu_kosullu(()), self.olgu_kosullu(())))
+
+    def test_yalnizca_birinde_kosul_varsa_uyumsuz(self):
+        self.assertFalse(kosullar_uyumlu_mu(self.olgu_kosullu((("kütle", 60000, 60000, 600),)), self.olgu_kosullu(())))
+
+    def test_ayni_kosul_uyumlu_farkli_kosul_uyumsuz(self):
+        a = self.olgu_kosullu((("kütle", 60000, 60000, 600),))
+        self.assertTrue(kosullar_uyumlu_mu(a, self.olgu_kosullu((("kütle", 60100, 60100, 601),))))
+        self.assertFalse(kosullar_uyumlu_mu(a, self.olgu_kosullu((("kütle", 10000, 10000, 100),))))
 
 
 if __name__ == "__main__":

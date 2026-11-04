@@ -123,10 +123,11 @@ class Rakamlama:
 # Yazıyla sayının hemen ardından gelirse rakama çevrilen birim ve sözcükler
 _SAYIDAN_SONRA = re.compile(
     r"\s+(?:saniye|dakika|saat|gün|hafta|yıl|milimetre|santimetre|kilometre|metre|kilogram|gram|ton|newton|derece|"
-    r"km|cm|mm|kg|mg|dk)(?![" + HARF + r"])",
+    r"km|cm|mm|kg|mg|dk)",
     re.IGNORECASE,
 )
 _YUZDEDEN_SONRA = re.compile(r"yüzde\s+$", re.IGNORECASE)
+_RAKAMDAN_SONRA = re.compile(r"\d\s*$")
 
 
 def rakamlastir(cumle: str) -> Rakamlama:
@@ -137,6 +138,8 @@ def rakamlastir(cumle: str) -> Rakamlama:
     for bas, bit, deger in yazili_sayi_dizileri(cumle):
         if not (_SAYIDAN_SONRA.match(cumle, bit) or _YUZDEDEN_SONRA.search(cumle[:bas])):
             continue
+        if _RAKAMDAN_SONRA.search(cumle[:bas]):
+            continue  # "12 bin yıl", "500 bin yıl": "bin" rakamlı sayının çarpanıdır
         if bas > son:
             parcalar.append((len(yeni), len(yeni) + bas - son, son, bas, False))
             yeni += cumle[son:bas]

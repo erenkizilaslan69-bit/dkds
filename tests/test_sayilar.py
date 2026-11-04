@@ -54,6 +54,12 @@ class RakamlastirTest(unittest.TestCase):
     def test_yuzde_sonrasi(self):
         self.assertEqual(rakamlastir("Suyun yüzde yetmiş bir kısmı").yeni, "Suyun yüzde 71 kısmı")
 
+    def test_rakamli_sayinin_carpani_cevrilmez(self):
+        # "12 bin yıl önce": "bin" 12'nin çarpanıdır, ayrı bir sayı (1000) değildir
+        self.assertEqual(rakamlastir("yaklaşık 12 bin yıl önce").yeni, "yaklaşık 12 bin yıl önce")
+        self.assertEqual(rakamlastir("500 bin yıl önce").yeni, "500 bin yıl önce")
+        self.assertEqual(rakamlastir("bin yıl önce").yeni, "1000 yıl önce")
+
     def test_konum_haritasi_ozgun_metne_doner(self):
         metin = "Bu olay on bin yıl önce yaşandı."
         r = rakamlastir(metin)
