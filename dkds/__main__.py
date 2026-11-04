@@ -56,10 +56,11 @@ def cikar(argumanlar: list[str]) -> int:
 
 def analiz(argumanlar: list[str]) -> int:
     from .analiz.okunabilirlik import OkunabilirlikAnalizoru
+    from .analiz.tutarlilik import TutarlilikAnalizoru
     from .analiz.yazim import YazimAnalizoru  # zeyrek yüklemesi yalnızca analizde
 
     ayrac = argparse.ArgumentParser(
-        prog="dkds analiz", description="DKDS – PDF'te yazım ve okunabilirlik analizi yapar."
+        prog="dkds analiz", description="DKDS – PDF'te yazım, okunabilirlik ve tutarlılık analizi yapar."
     )
     ayrac.add_argument("pdf", type=Path, help="İncelenecek PDF dosyası")
     ayrac.add_argument("-o", "--cikti", type=Path, help="Bulguların yazılacağı JSON dosyası")
@@ -80,10 +81,14 @@ def analiz(argumanlar: list[str]) -> int:
         okunabilirlik = OkunabilirlikAnalizoru(arg.sinif).incele(sonuc.paragraflar)
         bulgular += okunabilirlik.bulgular
 
-    cikti = arg.cikti or Path("cikti") / f"{arg.pdf.stem}_bulgular.json"
+    tutarlilik = TutarlilikAnalizoru().incele(sonuc.paragraflar)
+    bulgular += tutarlilik.bulgular
+
+    cikti =arg.cikti or Path("cikti") / f"{arg.pdf.stem}_bulgular.json"
     kayit = {"kaynak": sonuc.kaynak, "uyarilar": sonuc.uyarilar, "bulgular": [asdict(b) for b in bulgular]}
     if okunabilirlik:
         kayit["okunabilirlik_ozeti"] = okunabilirlik.ozet
+    kayit["tutarlilik_ozeti"] = tutarlilik.ozet
     _json_yaz(cikti, kayit)
 
     paragraf_turu = {(p.sayfa, p.paragraf): p.tur for p in sonuc.paragraflar}
@@ -96,9 +101,20 @@ def analiz(argumanlar: list[str]) -> int:
         _okunabilirlik_ozeti_yaz(okunabilirlik.ozet)
     else:
         print("\nOkunabilirlik analizi için kitabın sınıfını verin: --sinif 5")
+    _tutarlilik_ozeti_yaz(tutarlilik.ozet, tutarlilik.bulgular)
     _uyarilari_yaz(sonuc.uyarilar)
     print(f"\nBulgular kaydedildi: {cikti}")
     return 0
+
+
+def _tutarlilik_ozeti_yaz(ozet: dict, bulgular: list) -> None:
+    print("\nTutarlılık özeti (tarih olguları):")
+    print(f"  Tarih olgusu    : {ozet['olgu_sayisi']} (varlıkla eşleşen {ozet['varlikli_olgu']}, "
+          f"eşleşmeyen {ozet['varliksiz_olgu']}; referans yıl {ozet['referans_yili']})")
+    print(f"  Varlık          : {ozet['varlik_sayisi']} (birden çok sayfada geçen {ozet['birden_cok_sayfadaki_varlik']})")
+    print(f"  Aday çelişki    : {ozet['aday_celiski']}")
+    for b in bulgular:
+        print(f"   s.{b.sayfa} ↔ s.{b.ilgili_sayfa}  güven {b.guven:.2f}  {b.aciklama}")
 
 
 def _okunabilirlik_ozeti_yaz(ozet: dict) -> None:
