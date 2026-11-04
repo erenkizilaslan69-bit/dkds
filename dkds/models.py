@@ -60,6 +60,10 @@ class Bulgu:
     oneri: str | None = None
     konum: Konum | None = None
     tur: str = ""  # bulguyu üreten kural, ör. "tekrar", "bilinmeyen_kelime"
+    # Bulgu iki yeri birlikte ilgilendiriyorsa (ör. tutarsızlıkta çelişen diğer ifade) ikinci yer
+    ilgili_sayfa: int | None = None
+    ilgili_paragraf: int | None = None
+    ilgili_konum: Konum | None = None
 
 
 @dataclass
