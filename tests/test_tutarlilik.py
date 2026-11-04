@@ -458,5 +458,62 @@ class KosulTest(unittest.TestCase):
         self.assertFalse(kosullar_uyumlu_mu(a, self.olgu_kosullu((("kütle", 10000, 10000, 100),))))
 
 
+class AlistirmaTest(unittest.TestCase):
+    """fen5 s.49-50: doğru/yanlış sorusunun 5. maddesi bilerek yanlıştır; kitap bilgisi sayılmaz."""
+
+    S49 = ("Dünya’nın kendi ekseni etrafındaki dönme hareketi 24 saatte tamamlanır. Dünya’nın Güneş’in etrafındaki "
+           "dolanma hareketi yaklaşık 365 gün 6 saatte tamamlanır.")
+
+    def sayfa50(self, yonerge, madde="5. Dünya, dolanma hareketini 24 saatte tamamlar."):
+        return [
+            Paragraf(sayfa=50, paragraf=3, metin="PEKİŞTİRME İSTASYONU-1", konum=(0, 0, 1, 1), tur="baslik"),
+            Paragraf(sayfa=50, paragraf=4, metin=yonerge, konum=(0, 1, 1, 2)),
+            Paragraf(sayfa=50, paragraf=5, metin="D Y", konum=(0, 2, 1, 3), tur="baslik"),
+            Paragraf(sayfa=50, paragraf=10, metin=madde, konum=(0, 3, 1, 4), tur="liste"),
+        ]
+
+    def incele(self, *paragraflar):
+        return TutarlilikAnalizoru().incele(list(paragraflar))
+
+    def test_dogru_yanlis_maddesi_olgu_sayilmaz(self):
+        yonerge = "Aşağıdaki ifadelerin doğruluk durumunu belirleyiniz. İfade doğru ise “D”, yanlış ise “Y” kutusunu işaretleyiniz."
+        s49 = paragraf(self.S49, 49)
+        sonuc = self.incele(s49, *self.sayfa50(yonerge))
+        self.assertEqual({o.sayfa for o in sonuc.olgular}, {49})
+        self.assertEqual(sonuc.belirsizler, [])
+        self.assertEqual(sonuc.bulgular, [])
+
+    def test_yonergesiz_ayni_madde_olgu_olur(self):
+        # aynı madde yönergesiz (düz anlatım) ise olgudur: kural yalnızca yönergeli bloğu dışarıda bırakır
+        sonuc = self.incele(paragraf(self.S49, 49), paragraf("Dünya, dolanma hareketini 24 saatte tamamlar.", 50))
+        self.assertIn(50, {o.sayfa for o in sonuc.olgular})
+
+    def test_diger_yonerge_turleri(self):
+        for yonerge in ("Boşlukları doldurunuz.", "Doğru seçeneği işaretleyiniz.", "Soruları cevaplayınız."):
+            sonuc = self.incele(*self.sayfa50(yonerge, "Dünya, dolanma hareketini 24 saatte tamamlar."))
+            self.assertEqual(sonuc.olgular, [], yonerge)
+
+    def test_blok_yeni_baslikta_biter(self):
+        paragraflar = self.sayfa50("İfade doğru ise D, yanlış ise Y yazınız.") + [
+            Paragraf(sayfa=50, paragraf=11, metin="BİLGİ İSTASYONU", konum=(0, 4, 1, 5), tur="baslik"),
+            Paragraf(sayfa=50, paragraf=12, metin="Dünya, dolanma hareketini 365 gün 6 saatte tamamlar.", konum=(0, 5, 1, 6)),
+        ]
+        sonuc = self.incele(*paragraflar)
+        self.assertEqual([o.paragraf for o in sonuc.olgular], [12])
+
+    def test_blok_sayfa_sonunda_biter_ve_uzun_anlatim_yonerge_degil(self):
+        sonuc = self.incele(*self.sayfa50("İfade doğru ise D, yanlış ise Y yazınız."),
+                            paragraf("Dünya, dolanma hareketini 24 saatte tamamlar.", 51))
+        self.assertEqual({o.sayfa for o in sonuc.olgular}, {51})
+        uzun = "Bu cümle doğru ise önemlidir. " + "Uzun anlatım sözcüğü " * 20
+        sonuc = self.incele(paragraf(uzun, 60), paragraf("Dünya, dolanma hareketini 24 saatte tamamlar.", 60, 2))
+        self.assertEqual([o.paragraf for o in sonuc.olgular], [2])
+
+    def test_soru_turundeki_paragraf_olgu_sayilmaz(self):
+        soru = Paragraf(sayfa=70, paragraf=1, metin="Dünya, dolanma hareketini kaç saatte tamamlar, 24 saatte mi?",
+                        konum=(0, 0, 1, 1), tur="soru")
+        self.assertEqual(self.incele(soru).olgular, [])
+
+
 if __name__ == "__main__":
     unittest.main()

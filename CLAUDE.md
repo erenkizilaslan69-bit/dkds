@@ -215,6 +215,11 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   Ay/gün adları, form etiketleri ("Süre : 40 dk"), BÜYÜK HARFLİ başlık sözcükleri isim değil; Dünya/Türkiye/
   Anadolu gibi genel adlar yalnızca tarihte elenir. Harita/şema etiket paragrafları ve etkinlik künyeleri
   ("Adı … Amaç … Süre 80 dk") ölçü olgusu sayılmaz.
+- **Alıştırma/değerlendirme içeriği olgu değil:** yönergesinde "doğru ise", "yanlış ise", "D/Y", "boşlukları doldurunuz",
+  "işaretleyiniz", "cevaplayınız", "eşleştiriniz" geçen (≤ 40 kelimelik) paragraf ve altındaki maddeler, bir sonraki gerçek
+  başlığa ya da sayfa sonuna kadar olgu sayılmaz ("D Y" gibi sütun etiketleri başlık değil); `soru` türündeki paragraflar da
+  dışarıda (`TutarlilikAnalizoru.alistirma_paragraflari`). Neden: fen5 s.50 Pekiştirme İstasyonu'nda "5. Dünya, dolanma
+  hareketini 24 saatte tamamlar" bilerek yanlış yazılmış doğru/yanlış maddesidir, kitap hatası değil (s.49-s.50 testi).
 - **Olgu anahtarı = varlık + nicelik türü + ayırıcı + bağlam.** Tür: sıcaklık/kütle/kuvvet/oran sabit; uzunlukta
   çap, yarıçap, uzaklık, yükseklik, derinlik, uzunluk...; zamanda dönme, dolanma, ömür, süre (en yakın sözcük).
   Ayırıcı: gece, gündüz, ortalama, kış, kutup, ekvator, yüzey, en yüksek/en düşük... (değerden önce geldiği için
@@ -228,19 +233,19 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   kök, zayıf = ≥ 0,15 ve ≥ 1). Tarihte varlık yeterli; olay türü (başlangıç: kuruldu/inşa / bitiş: terk edildi)
   ikisinde de belli ve farklıysa ayrı olay. Güven: fark/tolerans 1'de 0,45, 4'te 0,75; ölçüde bağlam benzerliğiyle
   hafif azalır.
-- **Sonuç (6 kitap, 4.11.2026):**
+- **Sonuç (6 kitap, 4.11.2026, alıştırma filtresinden sonra):**
 
   | kitap | olgu (tarih+sayısal) | varlıkla eşleşen | aday çelişki | belirsiz (zayıf) |
   |---|---|---|---|---|
-  | fen3 | 15 (0+15) | 2 | 0 | 2 (1) |
-  | fen5 | 47 (0+47) | 22 | 0 | 14 (5) |
-  | fen7 | 29 (0+29) | 10 | 0 | 0 |
-  | biyoloji9 | 59 (1+58) | 8 | 0 | 0 |
-  | sosyalbilgiler5 | 45 (19+26) | 29 | 1 | 0 |
+  | fen3 | 14 (0+14) | 3 | 0 | 2 (1) |
+  | fen5 | 36 (0+36) | 20 | 0 | 4 (0) |
+  | fen7 | 21 (0+21) | 6 | 0 | 0 |
+  | biyoloji9 | 40 (0+40) | 8 | 0 | 0 |
+  | sosyalbilgiler5 | 43 (18+25) | 28 | 1 | 0 |
   | turkce5 | 7 (0+7) | 0 | 0 | 0 |
 
-  Tarih olgusu çıkmayan fen/Türkçe kitaplarında sayısal olgu çıktı (202 olgunun 71'i, yani %35'i varlıkla
-  eşleşti; geri kalanı "Bu dönme hareketi…", "Yılanlar…" gibi adsız ya da çoğul özneli cümleler).
+  Tarih olgusu çıkmayan fen/Türkçe kitaplarında sayısal olgu çıktı (161 olgunun 65'i, yani %40'ı varlıkla
+  eşleşti; alıştırma filtresi 202 → 161 olguya indirdi, belirsiz 16 → 6, güçlü 10 → 5; geri kalanı "Bu dönme hareketi…", "Yılanlar…" gibi adsız ya da çoğul özneli cümleler).
 - **Aday kontrolü (basılı sayfayla):** tek aday gerçek çelişki ve eşleştirme doğru: Çatalhöyük s.118 "yaklaşık
   9000 yıl önce" ↔ s.112 "MÖ 7500" (=9.500) ve s.147 "9 500 yıl önce"; üçü de kuruluş/ilk yerleşme, güven 0,45
   (fark 500 yıl, yuvarlamanın tam sınırı; s.118 tırnak içi dış kaynak alıntısı). Göbeklitepe (s.112, 114) ve
@@ -252,13 +257,12 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   koşul ölçüsü kuralıyla belirsiz. (3) **kod hatası:** "12 bin yıl önce"deki "bin" yazıyla sayı sanılıp Göbeklitepe
   için sahte 11.000 yıllık fark üretti; giderildi (test var). (4) ayırıcı yanlış bağlama: "gece -174, gündüz ise 125"
   cümlesinde "gündüz" -174'e atanıyordu; izleyen ilk ölçüye bağlanarak düzeltildi.
-- **Belirsiz örnekleri (JSON `tutarlilik_belirsiz`; toplam 16, güçlü 10):** fen5 s.49 "Bu dolanma hareketi yaklaşık 365
-  gün 6 saatte tamamlanır" ↔ s.50 "Dünya, dolanma hareketini 24 saatte tamamlar" (varlık s.49'da zamirle
-  verilmiş; gerçek çelişki olabilir, alıştırmada yanlış ifade de olabilir); fen5 s.20 "Ay'ı 30 gün boyunca gözleyin" ↔
-  s.49 "Ay'ın dönme hareketi yaklaşık 27 gün 8 saatte" (tür belli değil; farklı nicelik); fen3 s.79 "Yılanlar 10 ila 15 yıl
-  yaşar" ↔ s.80 "Kaplumbağalar yaklaşık 80 yıl yaşar" (farklı hayvan; özne çoğul ve sözcük cümle başında olduğu
-  için varlıksız); fen5 s.66-67-70 dinamometre alıştırmalarındaki 3/10/30/50/70/80 N değerleri (farklı sorular; gösterilen 10
-  çiftin 4'ü bu gürültü).
+- **Belirsiz (alıştırma filtresinden sonra; JSON `tutarlilik_belirsiz`; toplam 6, güçlü 5):** fen5 s.20 "Ay'ı 30 gün boyunca
+  gözleyin" ↔ s.35 "yedi yılda" ve s.49 "27 gün 8 saatte" (tür belli değil; farklı nicelik; 3 çift); fen3 s.79/s.50 "yılan
+  10-15 yıl yaşar" ↔ s.80 "kaplumbağa 80 yıl" (farklı hayvan; 2 çift); fen5 s.67 "10 N'lık" ↔ s.97 "20 N'dı" (dinamometre).
+  Filtreden önce 16 çiftin 10'u fen5'teydi: s.49 "365 gün 6 saat" ↔ s.50 "24 saatte" (bilerek yanlış D/Y maddesi) ve
+  s.66-67-70 dinamometre soruları (filtreyle çıktı). Filtre aşırı kapsayabilir: yönergeden sonra sayfa sonuna kadar
+  süren blokta anlatım paragrafı da düşer (fen7 s.140 "Haftada üç gün diyaliz", s.120 "3-4 saniye nefes tutun").
 - **Bilinen sınırlar:** (1) Zamirli ya da çoğul/sıradan özneli cümleler ("Bu dönme hareketi…", "Yılanlar…") varlıksız;
   anafora çözülmüyor. (2) Cümlede birden çok varlık varsa ("Dünya ve Ay, Güneş etrafındaki…") yalnızca en yakın
   (ölçüde en yakın iki) isim alınır. (3) Tür sözlüğü küçük (zaman ve uzunlukta 12 tür); tür bulunamazsa çift

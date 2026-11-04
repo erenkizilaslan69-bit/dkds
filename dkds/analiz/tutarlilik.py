@@ -109,6 +109,12 @@ TARIH_VARLIK_DISI = frozenset(
 _ETIKET_SONU = re.compile(r"\s+:")  # "Süre : 40 dk" gibi form etiketi
 _KUNYE_ETIKETI = re.compile(r"\b(?:Adı|Amaç|Süre|Konu|Kazanım|Araç|Gereç|Malzeme)\b")
 _SURE_ETIKETI = re.compile(r"\bSüre\s*:?\s*$")
+# Değerlendirme/alıştırma yönergesi: altındaki maddeler (bilerek yanlış yazılmış olabilir) olgu sayılmaz
+_YONERGE = re.compile(
+    r"doğru\s+ise|yanlış\s+ise|doğru\s+(?:ya\s+da|veya)\s+yanlış|[“”‘’]D[“”‘’].{0,20}[“”‘’]Y[“”‘’]|\bD\s*/\s*Y\b"
+    r"|boşlukları\s+doldur|boşluğa|işaretleyiniz|işaretleyin|cevaplayınız|cevaplayın|eşleştiriniz",
+    re.IGNORECASE)
+YONERGE_EN_COK_KELIME = 40  # daha uzun paragraf yönerge değil anlatımdır
 KUNYE_EN_AZ_ETIKET = 2  # etkinlik künyesi ("Adı ... Amaç ... Süre 80 dk"): süre/amaç karşılaştırılacak bir olgu değil
 # Öbeğin son sözcüğü bunlardan biriyse ("Karain Mağarası") son sözcükle eşleşme yapılmaz: genel ad
 # olduğundan farklı varlıkları birleştirirdi
@@ -553,8 +559,29 @@ class TutarlilikAnalizoru:
     def analiz_et(self, paragraflar: Iterable[Paragraf]) -> list[Bulgu]:
         return self.incele(paragraflar).bulgular
 
+    @staticmethod
+    def alistirma_paragraflari(paragraflar: Sequence[Paragraf]) -> set[tuple[int, int]]:
+        """Yönergesi ("doğru ise D, yanlış ise Y", "boşlukları doldurunuz"...) olan alıştırma bloklarının
+        (yönerge dahil) ve soru türündeki paragrafların (sayfa, paragraf) kimlikleri.
+
+        Blok yönerge paragrafından sonraki ilk gerçek başlığa ya da sayfa sonuna kadar sürer ("D Y" gibi
+        sütun etiketleri başlık sayılmaz); maddeler bilerek yanlış olabileceğinden kitap bilgisi değildir."""
+        dis: set[tuple[int, int]] = set()
+        blok_sayfasi = None
+        for p in paragraflar:
+            if blok_sayfasi is not None and (p.sayfa != blok_sayfasi or (
+                    p.tur == "baslik" and len(re.findall(r"\w{2,}", p.metin)) >= 1)):
+                blok_sayfasi = None
+            if (len(p.metin.split()) <= YONERGE_EN_COK_KELIME and p.tur != "baslik" and _YONERGE.search(p.metin)):
+                blok_sayfasi = p.sayfa
+            if blok_sayfasi is not None or p.tur == "soru":
+                dis.add((p.sayfa, p.paragraf))
+        return dis
+
     def olgulari_cikar(self, paragraflar: Iterable[Paragraf]) -> list[Olgu]:
         paragraflar = list(paragraflar)
+        dis = self.alistirma_paragraflari(paragraflar)
+        paragraflar = [p for p in paragraflar if (p.sayfa, p.paragraf) not in dis]
         cumleler = [(p, c) for p in paragraflar for c in cumlelere_ayir(p.metin)]
         kucukler = frozenset(_kucuk(k) for p in paragraflar for k in _KUCUK_KELIME.findall(p.metin))
         orta_buyukler = frozenset(
