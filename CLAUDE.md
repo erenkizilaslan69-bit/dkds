@@ -190,6 +190,54 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   ("ETKİNLİK a.a. …" etiketleri dahil) ile öğrenci örnek metinleri ölçüme giriyor; kopya katman
   temizliği yalnızca aynı yerde duran ve benzer metinleri yakalar.
 
+## Tutarlılık analizörü notları (kriter 3, ilk sürüm: kural tabanlı, yalnızca tarih)
+
+- `dkds/analiz/tutarlilik.py`, `python -m dkds analiz` içinde her çalıştırmada koşar (sınıf gerekmez),
+  bulgu `kriter="tutarlilik"`, `tur="tarih_celiskisi"`. `Bulgu`ya isteğe bağlı `ilgili_sayfa`,
+  `ilgili_paragraf`, `ilgili_konum` eklendi (çelişen diğer yer). LLM henüz yok.
+- **Olgu:** "MÖ 7500", "M.Ö. 7500", "MS 1071", "MÖ 10000 yıllarında", "9 500 yıl önce", "12.000 yıl önce",
+  "yaklaşık 12 bin yıl önce", aralık ("11.500-12.000 yıl önce", "MÖ 3000-2000"). Yaklaşık sayılanlar:
+  "yaklaşık", "civarında", "yıllarında", "MÖ 5000'lerde". Yüzyıl ("MÖ 7. yüzyıl") ve 100'den küçük
+  "yıl önce" değerleri olgu değildir. Normalleştirme: günümüzden-yıl-önce, MÖ yıl + referans yıl
+  (varsayılan 2000, kitabın s.112 kuralı; parametre), MS yıl için referans yıl - yıl.
+- **Varlık:** aynı cümledeki en yakın özel isim (en çok 80 karakter; kesme sonrası ek atılır; yan yana
+  büyük harfli sözcükler öbek: "Karain Mağarası"; cümle başındaki sözcük kitapta küçük harfle de
+  geçiyorsa sıradan sözcüktür). Ay/gün adları ve genel bölge/dönem adları (Anadolu, Mezopotamya,
+  Neolitik, Türkiye...) varlık sayılmaz. Bulunamazsa olgu karşılaştırmaya katılmaz.
+- **Karşılaştırma:** aynı varlığın farklı sayfalardaki olguları aralık olarak karşılaştırılır. Tolerans:
+  yaklaşık değerde yazılan sayının yuvarlama basamağının yarısı (9000 → ±500, 9500 → ±50, 12 bin → ±500;
+  "MÖ 10000 yıllarında" en çok ±500), kesin değerde 0. Fark ≥ iki toleransın toplamı ise aday
+  (sınır dahil). Güven: yaklaşık değer varsa fark/tolerans 1'de 0,45, 4'te 0,75; iki değer de kesinse
+  göreli farka göre 0,65-0,90. Aynı sayfadaki farklar aday değildir. Bulgu, küçük kümenin olgusuna yazılır.
+- **Sonuç (6 kitap):**
+
+  | kitap | tarih olgusu | varlıkla eşleşen | aday çelişki |
+  |---|---|---|---|
+  | fen3 | 0 | 0 | 0 |
+  | fen5 | 0 | 0 | 0 |
+  | fen7 | 0 | 0 | 0 |
+  | biyoloji9 | 1 | 0 | 0 |
+  | sosyalbilgiler5 | 18 | 12 | 1 |
+  | turkce5 | 0 | 0 | 0 |
+
+  Fen ve Türkçe kitaplarında ham metin de taranıp kaçırılan biçim olmadığı görüldü (tek olgu biyoloji9
+  s.157 "yaklaşık 10 000 yıl önce", varlıksız). Yani bu ilk sürümün asıl sınaması sosyal5'tir.
+- **Aday kontrolü (basılı sayfayla, 4.11.2026):** tek aday gerçek ve eşleştirme doğru: Çatalhöyük
+  s.118 "yaklaşık 9000 yıl önce kurulmuştur" ↔ s.112 "Çatalhöyük (MÖ 7500)" (= 9.500) ve s.147 "Bundan
+  9 500 yıl önce" (üçü de kuruluş/ilk yerleşme, farklı olay değil). Güven 0,45: fark 500 yıl, "yaklaşık
+  9000" ≈ 8500-9500 aralığının tam sınırı; yani yuvarlamayla savunulabilir. s.118 metni tırnak içinde
+  dış kaynak alıntısıdır. Göbeklitepe (s.112, 114) ve Karahantepe (s.128) bulgu üretmedi.
+- **Bilinen sınırlar:** (1) Eşleştirme: s.114 "Çemberimsi anıtsal yapılar, MÖ 8000 civarında" cümle
+  başındaki sıradan sözcüğü varlık sayıyor (doğrusu Göbeklitepe yapıları); s.131 "Sümer Kralı
+  Urukagina" öbeği başka yerdeki "Urukagina"yla eşleşmez; s.105 "500 bin yıl önce" ve s.113 "MÖ 10 000
+  yıllarında" cümlede isim olmadığı için varlıksız kalır. (2) Yazıyla sayılar ("on bin yıl"), yalın
+  yıllar ("1071'de"), yüzyıllar ve "MÖ 2000 yılından önce" kalıbı olgu sayılmaz. s.120 "MÖ. 10'lerde"
+  büyük olasılıkla çıkarım/baskı sorunu ve MÖ 10 olarak okunur. (3) Aynı varlığın farklı olayları
+  (kuruluş / terk: Göbeklitepe MÖ 10000 ↔ MÖ 8000) ayırt edilmez; bugün eşleştirme hatası sayesinde
+  çelişki çıkmıyor, varlık eşleşmesi düzelirse çıkacaktır. (4) MS için referans yıl 2000 kullanıldığından
+  "MS 1071" = 929 yıl önce (gerçek 954). (5) Tek aday olduğundan kesinlik (precision) ve duyarlılık
+  (recall) ölçülemez; hata yerleştirilmiş test seti (hafta 12) gerekir.
+
 ## Yazım analizörü notları
 
 - zeyrek 0.1.3'te durum bozulması hatası var (lru_cache'li küme değiştiriliyor); `morfoloji.py`

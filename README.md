@@ -9,7 +9,7 @@ Tespit edilen her sorun, açıklamasıyla birlikte kitabın ilgili **sayfa ve pa
 |---|---|---|
 | Yazım ve dil hataları | Kural tabanlı + morfolojik analiz (zeyrek) | İlk sürüm |
 | Yaş / sınıf seviyesine uygunluk | İstatistiksel (Ateşman, Bezirci-Yılmaz) | İlk sürüm (sınıf referansı) |
-| Kitap içi bilgi tutarsızlığı | Yapay zekâ destekli (LLM) | Planlandı |
+| Kitap içi bilgi tutarsızlığı | Kural tabanlı tarih olguları (LLM sonra) | İlk sürüm (yalnızca tarih) |
 
 ## Mimari
 
@@ -30,6 +30,7 @@ PDF ─► Metin çıkarma ─► Temizleme ─► Analizörler ─► Bulgular 
 | `dkds/analiz/yazim.py` | Yazım analizörü: kesin kurallar, bilinmeyen kelime, Türkçe karakter kaybı ayrımı |
 | `dkds/analiz/morfoloji.py` | zeyrek sarmalayıcısı: kelime geçerliliği, önbellek, zeyrek hata yaması |
 | `dkds/analiz/okunabilirlik.py` | Okunabilirlik analizörü: cümle ayırma, Ateşman ve Bezirci-Yılmaz formülleri, sınıf referansıyla karşılaştırma |
+| `dkds/analiz/tutarlilik.py` | Tutarlılık analizörü: tarih olgularını ("MÖ 7500", "9 500 yıl önce"...) günümüzden-yıl-önceye çevirir, aynı varlığın farklı sayfalardaki tarihlerini karşılaştırır |
 | `dkds/analiz/referans.py`, `referans.json` | Sınıf başına okunabilirlik referansı: ortanca, %10 ve %90 dilimleri (3-9. sınıf kitaplarından) |
 
 `duzen.py`, `temizleme.py` ve `siniflandirma.py` hiçbir PDF kütüphanesine bağlı değildir; böylece bağımsız olarak test edilebilirler.
@@ -88,6 +89,12 @@ Referansı yeniden üretmek (ölçüm kodu değiştiğinde ya da yeni kitap ekle
 python -m dkds referans -k 3 veri\fen3.pdf -k 5 veri\fen5.pdf -k 5 veri\sosyalbilgiler5.pdf `
     -k 7 veri\fen7.pdf -k 9 veri\biyoloji9.pdf
 ```
+
+Tutarlılık analizi (`--sinif` gerekmez) kitaptaki tarih ifadelerini bulur ("MÖ 7500", "9 500 yıl önce",
+"yaklaşık 12 bin yıl önce"), hepsini "günümüzden kaç yıl önce"ye çevirir (MÖ yıl + 2000, kitabın kendi
+sayma kuralı) ve aynı varlık için farklı sayfalarda birbirini tutmayan tarihleri aday çelişki olarak
+bildirir; bulgu iki sayfayı birlikte gösterir (`ilgili_sayfa`). Yaklaşık değerlerde yuvarlama
+toleransı tanınır. JSON'da `tutarlilik_ozeti` bölümü yer alır.
 
 Bulgular `cikti\kitap_bulgular.json` dosyasına yazılır; ekranda kriter, bulgu türü ve paragraf
 türüne göre özet gösterilir. Her bulgu `Bulgu` formatındadır (sayfa, paragraf, kriter,

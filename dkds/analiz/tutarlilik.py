@@ -68,7 +68,8 @@ _KESME = re.compile(r"['’]")
 
 # Tarihin "ait olduğu varlık" olamayacak büyük harfli sözcükler: ay ve gün adları, soru/etkinlik
 # sözcükleri ve çok sayıda olaya ev sahipliği yapan genel bölge/dönem adları (aynı bölgede farklı
-# olayların farklı tarihleri çelişki değildir). Kitaplar incelenerek genişletildi (bkz. CLAUDE.md).
+# olayların farklı tarihleri çelişki değildir). Liste elle yazıldı; altı kitapta yalnızca bir aday
+# çıktığı için kitaplardan gelen gürültüye göre ayarlanmadı.
 VARLIK_DISI = frozenset(
     """
     ocak şubat mart nisan mayıs haziran temmuz ağustos eylül ekim kasım aralık
