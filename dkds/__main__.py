@@ -89,6 +89,7 @@ def analiz(argumanlar: list[str]) -> int:
     if okunabilirlik:
         kayit["okunabilirlik_ozeti"] = okunabilirlik.ozet
     kayit["tutarlilik_ozeti"] = tutarlilik.ozet
+    kayit["tutarlilik_belirsiz"] = [x.sozluk() for x in tutarlilik.belirsizler]
     _json_yaz(cikti, kayit)
 
     paragraf_turu = {(p.sayfa, p.paragraf): p.tur for p in sonuc.paragraflar}
@@ -108,11 +109,14 @@ def analiz(argumanlar: list[str]) -> int:
 
 
 def _tutarlilik_ozeti_yaz(ozet: dict, bulgular: list) -> None:
-    print("\nTutarlılık özeti (tarih olguları):")
-    print(f"  Tarih olgusu    : {ozet['olgu_sayisi']} (varlıkla eşleşen {ozet['varlikli_olgu']}, "
-          f"eşleşmeyen {ozet['varliksiz_olgu']}; referans yıl {ozet['referans_yili']})")
+    print("\nTutarlılık özeti (tarih ve sayısal olgular):")
+    print(f"  Olgu            : {ozet['olgu_sayisi']} (tarih {ozet['tarih_olgusu']}, sayısal {ozet['sayisal_olgu']}; "
+          f"varlıkla eşleşen {ozet['varlikli_olgu']}, eşleşmeyen {ozet['varliksiz_olgu']}; "
+          f"referans yıl {ozet['referans_yili']})")
     print(f"  Varlık          : {ozet['varlik_sayisi']} (birden çok sayfada geçen {ozet['birden_cok_sayfadaki_varlik']})")
-    print(f"  Aday çelişki    : {ozet['aday_celiski']}")
+    print(f"  Aday çelişki    : {ozet['aday_celiski']} (tarih {ozet['aday_tarih']}, sayısal {ozet['aday_sayisal']})")
+    print(f"  Belirsiz        : {ozet['belirsiz']} (zayıf {ozet['belirsiz_zayif']}); aynı nicelik olup olmadığı "
+          f"anlaşılamayan çiftler, JSON'da tutarlilik_belirsiz")
     for b in bulgular:
         print(f"   s.{b.sayfa} ↔ s.{b.ilgili_sayfa}  güven {b.guven:.2f}  {b.aciklama}")
 

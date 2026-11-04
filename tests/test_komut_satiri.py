@@ -67,8 +67,9 @@ class AnalizKomutuTest(unittest.TestCase):
         kod, ekran, kayit = self.calistir()
         self.assertEqual(kod, 0)
         self.assertEqual(kayit["tutarlilik_ozeti"]["olgu_sayisi"], 0)
+        self.assertEqual(kayit["tutarlilik_belirsiz"], [])
         self.assertEqual(kayit["tutarlilik_ozeti"]["referans_yili"], 2000)
-        self.assertIn("Tutarlılık özeti (tarih olguları):", ekran)
+        self.assertIn("Tutarlılık özeti (tarih ve sayısal olgular):", ekran)
         self.assertIn("Aday çelişki    : 0", ekran)
         self.assertNotIn("tutarlilik", {b["kriter"] for b in kayit["bulgular"]})
 
@@ -76,15 +77,17 @@ class AnalizKomutuTest(unittest.TestCase):
         from dkds.__main__ import _tutarlilik_ozeti_yaz
         from dkds.models import Bulgu
 
-        ozet = {"referans_yili": 2000, "olgu_sayisi": 7, "varlikli_olgu": 5, "varliksiz_olgu": 2,
-                "varlik_sayisi": 4, "birden_cok_sayfadaki_varlik": 1, "aday_celiski": 1}
+        ozet = {"referans_yili": 2000, "olgu_sayisi": 7, "tarih_olgusu": 5, "sayisal_olgu": 2, "varlikli_olgu": 5,
+                "varliksiz_olgu": 2, "varlik_sayisi": 4, "birden_cok_sayfadaki_varlik": 1, "aday_celiski": 1,
+                "aday_tarih": 1, "aday_sayisal": 0, "belirsiz": 3, "belirsiz_zayif": 1}
         bulgu = Bulgu(sayfa=118, paragraf=2, kriter="tutarlilik", sorunlu_metin="x", aciklama="Açıklama.",
                       guven=0.45, ilgili_sayfa=112, ilgili_paragraf=7)
         ekran = io.StringIO()
         with contextlib.redirect_stdout(ekran):
             _tutarlilik_ozeti_yaz(ozet, [bulgu])
-        for parca in ("Tarih olgusu    : 7 (varlıkla eşleşen 5, eşleşmeyen 2; referans yıl 2000)",
-                      "Varlık          : 4 (birden çok sayfada geçen 1)", "Aday çelişki    : 1",
+        for parca in ("Olgu            : 7 (tarih 5, sayısal 2; varlıkla eşleşen 5, eşleşmeyen 2; referans yıl 2000)",
+                      "Varlık          : 4 (birden çok sayfada geçen 1)", "Aday çelişki    : 1 (tarih 1, sayısal 0)",
+                      "Belirsiz        : 3 (zayıf 1)",
                       "s.118 ↔ s.112  güven 0.45  Açıklama."):
             self.assertIn(parca, ekran.getvalue())
 
