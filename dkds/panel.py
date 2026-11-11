@@ -30,6 +30,9 @@ TUR_ADLARI = {
 }
 # Metin çıkarma hatasından kaynaklanması olası bulgu türleri: varsayılan olarak gizlenir
 CIKARIM_TURLERI = ("cikarim_sorunu", "karakter_kaybi")
+# Panelin varsayılan en düşük güveni. Bilinmeyen kelime bulguları 0,5 güvenle üretilir (çoğu özel isim, yabancı sözcük,
+# terim); 0,55 bunları gizler, kesin kural bulgularını (≥ 0,6) ve okunabilirlik bulgularının çoğunu bırakır.
+VARSAYILAN_EN_DUSUK_GUVEN = 0.55
 SUTUNLAR = ("Kitap", "Sayfa", "Paragraf", "Kriter", "Tür", "Sorunlu metin", "Açıklama", "Öneri", "Güven", "İlgili sayfa")
 
 
@@ -92,6 +95,12 @@ def bulgulari_suz(bulgular: list[dict], kriterler=None, turler=None, en_dusuk_gu
             continue
         sonuc.append(b)
     return sonuc
+
+
+def guven_sayilari(bulgular: list[dict], esik: float = VARSAYILAN_EN_DUSUK_GUVEN) -> tuple[int, int]:
+    """(yüksek güvenli, düşük güvenli) bulgu sayısı; düşük güvenli = güven < esik (varsayılan olarak gizli)."""
+    yuksek = sum(1 for b in bulgular if b["guven"] >= esik)
+    return yuksek, len(bulgular) - yuksek
 
 
 def tablo_satirlari(bulgular: list[dict], kitap: str = "") -> list[dict]:

@@ -48,6 +48,14 @@ class SuzmeTest(unittest.TestCase):
         self.assertEqual([b["sayfa"] for b in panel.bulgulari_suz(BULGULAR, en_dusuk_guven=0.7)], [2, 4])
         self.assertEqual(panel.bulgulari_suz(BULGULAR, kriterler=[]), [])
 
+    def test_guven_sayilari_ve_varsayilan_esik(self):
+        self.assertEqual(panel.VARSAYILAN_EN_DUSUK_GUVEN, 0.55)
+        self.assertEqual(panel.guven_sayilari(BULGULAR), (3, 3))  # 0.9, 0.8, 0.7 yüksek; 0.5, 0.45, 0.3 düşük
+        self.assertEqual(panel.guven_sayilari([]), (0, 0))
+        # varsayılan eşik 0,5'lik bilinmeyen kelime bulgularını gizler, kesin kural bulgularını bırakır
+        sonuc = panel.bulgulari_suz(BULGULAR, en_dusuk_guven=panel.VARSAYILAN_EN_DUSUK_GUVEN)
+        self.assertEqual([b["sayfa"] for b in sonuc], [2, 4])
+
     def test_turkce_adlar(self):
         self.assertEqual(panel.kriter_adi("tutarlilik"), "Tutarlılık")
         self.assertEqual(panel.tur_adi("cikarim_sorunu"), "Olası metin çıkarma sorunu")

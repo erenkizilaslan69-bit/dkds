@@ -49,6 +49,10 @@ def ornek_kitap(klasor: Path) -> None:
     belge.close()
     kayit = kitabi_analiz_et(pdf, 5)
     (klasor / "cikti" / "fen5_bulgular.json").write_text(json.dumps(kayit, ensure_ascii=False), encoding="utf-8")
+    # ikinci kitap: farklı bulgu türleri (kitap değişince süzgeç seçimlerinin sıfırlandığını denemek için)
+    ikinci = {**kayit, "kaynak": "turkce5.pdf", "sinif": 5, "bulgular": [
+        {**kayit["bulgular"][0], "tur": "tekrar", "guven": 0.9, "sayfa": 2}]}
+    (klasor / "cikti" / "turkce5_bulgular.json").write_text(json.dumps(ikinci, ensure_ascii=False), encoding="utf-8")
 
 
 @unittest.skipIf(fitz is None or AppTest is None, "PyMuPDF ya da streamlit kurulu değil")
@@ -81,12 +85,38 @@ class PanelAkisiTest(unittest.TestCase):
         self.assertEqual([t.label for t in at.tabs], ["📊 Özet", "🔎 Bulgular", "⭐ Öne çıkan bulgular"])
         self.assertEqual(at.title[0].value, "DKDS – Ders Kitabı Denetim Sistemi")
         etiketler = [m.label for m in at.metric]
-        for beklenen in ("Toplam bulgu", "Yazım", "Okunabilirlik", "Tutarlılık", "Aday çelişki"):
+        for beklenen in ("Yüksek güvenli bulgu", "Yazım", "Okunabilirlik", "Tutarlılık", "Aday çelişki"):
             self.assertIn(beklenen, etiketler)
         # örnek kitapta ölçülecek gövde metni yok: puan yerine açıklama gösterilir (çökmez)
         self.assertIn("okunabilirlik puanı hesaplanamadı", " ".join(i.value for i in at.info))
-        self.assertEqual(at.sidebar.selectbox(key="hazir_kitap").value, "fen5")
+        self.assertEqual(at.sidebar.selectbox(key="hazir_kitap").value, "fen5")  # alfabetik ilk kitap
         self.assertIn("fen5 (5. sınıf)", at.sidebar.selectbox(key="hazir_kitap").format_func("fen5"))
+
+    def test_varsayilan_filtre_dusuk_guvenlileri_gizler_tumunu_goster_acar(self):
+        at = self.ac()
+        sayi = lambda a: next(m for m in (x.value for x in a.markdown) if "bulgu gösteriliyor" in m)  # noqa: E731
+        self.assertEqual(at.slider(key="f_guven_fen5").value, 0.55)
+        self.assertFalse(at.checkbox(key="f_hepsi_fen5").value)
+        self.assertRegex(" ".join(m.value for m in at.markdown), r"\d+ yüksek güvenli\*\*, \d+ düşük güvenli")
+        varsayilan = int(sayi(at).split("**")[1])
+        toplam = int(sayi(at).split("toplam ")[1].rstrip(").").strip())
+        self.assertLess(varsayilan, toplam)  # örnek kitapta düşük güvenli bulgular var ve gizli
+        at.checkbox(key="f_hepsi_fen5").check().run()
+        self.assertEqual(len(at.exception), 0)
+        self.assertEqual(int(sayi(at).split("**")[1]), toplam)
+        self.assertTrue(at.slider(key="f_guven_fen5").disabled)
+
+    def test_kitap_degisince_suzgec_secimleri_sifirlanir(self):
+        at = self.ac()
+        self.assertEqual(at.sidebar.selectbox(key="hazir_kitap").options, ["fen5 (5. sınıf)", "turkce5 (5. sınıf)"])
+        fen5_turleri = set(at.multiselect(key="f_tur_fen5").options)
+        at.sidebar.selectbox(key="hazir_kitap").select("turkce5").run()
+        self.assertEqual(len(at.exception), 0, [e.value for e in at.exception])
+        yeni = at.multiselect(key="f_tur_turkce5")
+        self.assertEqual(set(yeni.options), {"Kelime tekrarı"})
+        self.assertEqual(yeni.value, ["tekrar"])  # yeni kitabın türleri seçili, öncekinin seçimi kalmadı
+        self.assertNotEqual(fen5_turleri, set(yeni.options))
+        self.assertIn("**1** bulgu gösteriliyor", " ".join(m.value for m in at.markdown))
 
     def test_bulgu_tablosu_ve_suzgecler(self):
         at = self.ac()
@@ -94,18 +124,18 @@ class PanelAkisiTest(unittest.TestCase):
         self.assertIn("(toplam ", sayi(at))
         toplam = int(sayi(at).split("**")[1])
         # güven eşiğini 1'e çekince hiç bulgu kalmaz ve kullanıcıya söylenir
-        at.slider(key="f_guven").set_value(1.0).run()
+        at.slider(key="f_guven_fen5").set_value(1.0).run()
         self.assertEqual(len(at.exception), 0)
         self.assertIn("**0** bulgu gösteriliyor", sayi(at))
         self.assertIn("Bu süzgeçle bulgu yok", " ".join(i.value for i in at.info))
         # kriter süzgeci: yalnızca okunabilirlik
-        at.slider(key="f_guven").set_value(0.0)
-        at.multiselect(key="f_kriter").set_value(["okunabilirlik"]).run()
+        at.slider(key="f_guven_fen5").set_value(0.0)
+        at.multiselect(key="f_kriter_fen5").set_value(["okunabilirlik"]).run()
         okunabilirlik = int(sayi(at).split("**")[1])
         self.assertLessEqual(okunabilirlik, toplam)
         # çıkarım sorunları varsayılan olarak gizli, kutu işaretlenince tabloya girer
-        self.assertFalse(at.checkbox(key="f_cikarim").value)
-        self.assertNotIn("cikarim_sorunu", at.multiselect(key="f_tur").value)
+        self.assertFalse(at.checkbox(key="f_cikarim_fen5").value)
+        self.assertNotIn("cikarim_sorunu", at.multiselect(key="f_tur_fen5").value)
 
     def test_indirme_dugmeleri_var(self):
         at = self.ac()

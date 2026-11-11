@@ -113,19 +113,31 @@ def bulgu_detayi(kayit: dict, bulgu: dict, anahtar: str, ek=None, ara=None) -> N
 
 def ozet_goster(kayit: dict) -> None:
     bulgular = kayit["bulgular"]
-    sayac = Counter(b["kriter"] for b in bulgular)
-    st.subheader("Kriter başına bulgu sayısı")
-    sutunlar = st.columns(4)
-    sutunlar[0].metric("Toplam bulgu", len(bulgular))
-    for sutun, kriter in zip(sutunlar[1:], ("yazim", "okunabilirlik", "tutarlilik")):
-        sutun.metric(panel.kriter_adi(kriter), sayac.get(kriter, 0))
-    cikarim = sum(1 for b in bulgular if b["tur"] in panel.CIKARIM_TURLERI)
-    if cikarim:
-        st.caption(f"Bunların {cikarim} tanesi olası metin çıkarma sorunudur (bulgu tablosunda varsayılan olarak gizli).")
+    esik = panel.VARSAYILAN_EN_DUSUK_GUVEN
+    yuksek_liste = [b for b in bulgular if b["guven"] >= esik]
+    yuksek, dusuk = panel.guven_sayilari(bulgular, esik)
+    sayac = Counter(b["kriter"] for b in yuksek_liste)
+    gizli = Counter(b["kriter"] for b in bulgular if b["guven"] < esik)
 
-    tur_sayaci = Counter(panel.tur_adi(b["tur"]) for b in bulgular)
-    if tur_sayaci:
-        st.bar_chart(dict(tur_sayaci.most_common()), horizontal=True, height=40 + 32 * len(tur_sayaci))
+    st.subheader("Kriter başına bulgu sayısı")
+    st.markdown(f"**{yuksek} yüksek güvenli**, {dusuk} düşük güvenli (varsayılan olarak gizli) — toplam {len(bulgular)}.")
+    sutunlar = st.columns(4)
+    sutunlar[0].metric("Yüksek güvenli bulgu", yuksek, f"{dusuk} düşük güvenli gizli" if dusuk else None, delta_color="off")
+    for sutun, kriter in zip(sutunlar[1:], ("yazim", "okunabilirlik", "tutarlilik")):
+        sutun.metric(panel.kriter_adi(kriter), sayac.get(kriter, 0),
+                     f"{gizli[kriter]} düşük güvenli gizli" if gizli.get(kriter) else None, delta_color="off")
+    st.caption(f"Yüksek güvenli: güven ≥ {esik:.2f}. Düşük güvenliler çoğunlukla «bilinmeyen kelime» (özel isim, yabancı "
+               "sözcük, terim olabilir) ve metin çıkarma şüphesidir; Bulgular sekmesinde «Tüm bulguları göster» ile açılır.")
+
+    turler = sorted({b["tur"] for b in bulgular}, key=lambda t: -sum(1 for b in bulgular if b["tur"] == t))
+    if turler:
+        import pandas as pd
+
+        tablo = pd.DataFrame(
+            {"Yüksek güvenli": [sum(1 for b in yuksek_liste if b["tur"] == t) for t in turler],
+             "Düşük güvenli (gizli)": [sum(1 for b in bulgular if b["tur"] == t and b["guven"] < esik) for t in turler]},
+            index=[panel.tur_adi(t) for t in turler])
+        st.bar_chart(tablo, horizontal=True, height=60 + 34 * len(turler), color=["#2e7d32", "#9e9e9e"])
 
     st.subheader("Okunabilirlik")
     oku = kayit.get("okunabilirlik_ozeti")
@@ -172,17 +184,29 @@ def bulgular_sekmesi(kayit: dict, kitap_adi: str) -> None:
     bulgular = kayit["bulgular"]
     kriterler = sorted({b["kriter"] for b in bulgular})
     turler = sorted({b["tur"] for b in bulgular})
+    # Süzgeç araçlarının anahtarı kitaba özeldir: kitap değişince yeni araçlar o kitabın türleriyle kurulur
+    # (aynı anahtar kalırsa tarayıcı önceki kitabın seçili türlerini gösterip yanlış süzgeç sunar)
+    k = lambda ad: f"{ad}_{kitap_adi}"  # noqa: E731
+    hepsi = st.checkbox("Tüm bulguları göster (düşük güvenli ve olası metin çıkarma sorunları dahil)", value=False,
+                        key=k("f_hepsi"), help="Kapalıyken yalnızca yüksek güvenli bulgular listelenir.")
     f1, f2, f3, f4 = st.columns([2, 3, 2, 2])
-    secili_kriter = f1.multiselect("Kriter", kriterler, default=kriterler, format_func=panel.kriter_adi, key="f_kriter")
+    secili_kriter = f1.multiselect("Kriter", kriterler, default=kriterler, format_func=panel.kriter_adi, key=k("f_kriter"))
     secili_tur = f2.multiselect("Bulgu türü", turler, default=[t for t in turler if t not in panel.CIKARIM_TURLERI],
-                                format_func=panel.tur_adi, key="f_tur")
-    en_dusuk = f3.slider("En düşük güven", 0.0, 1.0, 0.0, 0.05, key="f_guven")
-    cikarim = f4.checkbox("Olası metin çıkarma sorunlarını göster", value=False, key="f_cikarim",
+                                format_func=panel.tur_adi, key=k("f_tur"), disabled=hepsi)
+    en_dusuk = f3.slider("En düşük güven", 0.0, 1.0, panel.VARSAYILAN_EN_DUSUK_GUVEN, 0.05, key=k("f_guven"), disabled=hepsi,
+                         help="Bilinmeyen kelime bulguları 0,50 güvenlidir; varsayılan 0,55 bunları gizler.")
+    cikarim = f4.checkbox("Olası metin çıkarma sorunlarını göster", value=False, key=k("f_cikarim"), disabled=hepsi,
                           help="Çıkarım sorunu ve karakter kaybı türleri kitap hatası olmayabilir; varsayılan olarak gizli.")
-    suzulen = panel.bulgulari_suz(bulgular, secili_kriter, secili_tur, en_dusuk, cikarim)
+    if hepsi:
+        suzulen = panel.bulgulari_suz(bulgular, secili_kriter, None, 0.0, True)
+    else:
+        suzulen = panel.bulgulari_suz(bulgular, secili_kriter, secili_tur, en_dusuk, cikarim)
     satirlar = panel.tablo_satirlari(suzulen, kitap_adi)
 
     st.write(f"**{len(suzulen)}** bulgu gösteriliyor (toplam {len(bulgular)}).")
+    if not hepsi and len(suzulen) < len(bulgular):
+        st.caption(f"{len(bulgular) - len(suzulen)} bulgu süzgeç nedeniyle gizli (çoğu düşük güvenli «bilinmeyen kelime»); "
+                   "hepsini görmek için «Tüm bulguları göster»i işaretleyin.")
     ind1, ind2, _ = st.columns([1, 1, 4])
     ind1.download_button("CSV indir", panel.csv_bayt(satirlar), file_name=f"{kitap_adi}_bulgular.csv",
                          mime="text/csv", disabled=not satirlar, key="indir_csv")
@@ -251,7 +275,7 @@ def kitabi_sec() -> tuple[dict | None, str]:
 
     dosya = st.sidebar.file_uploader("PDF dosyası", type="pdf", key="pdf_yukle")
     tahmin = sinifi_dosya_adindan_bul(dosya.name) if dosya else None
-    sinif = st.sidebar.selectbox("Kitabın sınıf düzeyi", list(range(1, 13)), index=(tahmin or 5) - 1, key="sinif",
+    sinif = st.sidebar.selectbox("Kitabın sınıf düzeyi", list(range(1, 13)), index=(tahmin or 5) - 1, key=f"sinif_{dosya.name if dosya else ''}",
                                  help="Okunabilirlik, kitabı bu sınıfın referans dağılımıyla karşılaştırır.")
     if st.sidebar.button("Analiz et", type="primary", disabled=dosya is None, key="analiz_et"):
         bayt = dosya.getvalue()
