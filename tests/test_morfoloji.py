@@ -50,7 +50,8 @@ class MorfolojiTest(unittest.TestCase):
         self.assertTrue(self.morfoloji.gecerli_mi("düşünmeksizin"))
 
     def test_ek_sozluk(self):
-        for kelime in ("karekodu", "lizozom", "obsidiyenden", "zigguratların", "abeslang"):
+        for kelime in ("karekodu", "lizozom", "obsidiyenden", "zigguratların", "abeslang", "ozmoz", "karbohidratlar",
+                      "yakantop", "infografikler"):
             self.assertTrue(self.morfoloji.gecerli_mi(kelime), kelime)
 
     def test_kucuk_harfli_kelime_ozel_isim_olarak_gecerli_sayilmaz(self):
