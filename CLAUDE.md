@@ -307,10 +307,21 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 - Başlatma: `DKDS_Baslat.bat` ya da `streamlit run app.py`; önce `python -m dkds on_hesapla` (altı kitap ≈ 2,5 dk, sonuç
   `cikti\<kitap>_bulgular.json`). Mantık `dkds/panel.py` (süzme, sayfa işaretleme, CSV/Excel), analiz akışı `dkds/is_akisi.py`,
   sunum örnekleri `dkds/one_cikan.py` (altı doğrulanmış örnek; `tests/test_panel.py` gerçek kitaplarda sayfa ve kutuyu doğrular).
-- **Varsayılan güven süzgeci 0,55** (`panel.VARSAYILAN_EN_DUSUK_GUVEN`): «bilinmeyen kelime» bulguları 0,50 güvenle üretilir ve
-  çoğu özel isim/yabancı sözcük/terimdir; 0,55 bunları gizler. «Tüm bulguları göster» her şeyi açar. Yan etki: 0,55 altındaki
-  sınıf-üstü okunabilirlik bulguları (0,40-0,54) ve **gerçek ama 0,5 güvenli yazım hataları (sosyal5 «öğretmlerimiz», «anektod»)
-  tabloda varsayılan olarak gizlidir**; «Öne çıkan bulgular» sekmesi süzgeçten bağımsızdır.
+- **Varsayılan güven süzgeci 0,5** (`panel.VARSAYILAN_EN_DUSUK_GUVEN`, ≥ dahil). Eşik yerine ayrım yazım analizöründe: kitapta
+  **3 ya da daha fazla kez geçen «bilinmeyen kelime»** alan terimi sayılır (güven 0,3, açıklamada «kitapta N kez geçiyor, alan
+  terimi olabilir»; `ALAN_TERIMI_EN_AZ_GECIS`); 1-2 kez geçen 0,5'te kalır ve görünür («öğretmlerimiz», «anektod», «hedeflenmektedi»,
+  «sınıflandırılı» varsayılan tabloda görünür; test var). Sayım kelimenin kitaptaki küçük harfli tam biçimidir ("ökaryot" ve
+  "ökaryotik" ayrı sayılır). «Tüm bulguları göster» düşük güvenli ve çıkarım türlerini de açar. İlk deneme (sabit 0,55 eşik) bu
+  gerçek hataları da gizlediği için bırakıldı.
+- **Kaynakça:** tür `baslik`/`etiket` olan «KAYNAKÇA»/«KAYNAKLAR» paragrafından sonraki paragraflar, sonraki başlık/etiket
+  ("Görsel ve genel ağ kaynakçası" gibi «kaynakça» geçenler hariç) gelene kadar yazım denetimi dışıdır (fen3 kaynakçası: yabancı
+  yazar ve İngilizce başlıklar). Sınır: başlık/etiketten sonra kaynak listesi olmayan «Kaynaklar» etiketleri (biyoloji9 s.20, 52
+  etkinlik kutuları) sonraki başlık/etikete kadar denetlenmez.
+- Varsayılan süzgeçle görünen bulgu (11.11.2026, bu kuralla): biyoloji9 752 (toplam 1353), fen3 41 (59), fen5 28 (46), fen7 46 (75),
+  sosyalbilgiler5 53 (82), turkce5 93 (119). Eşik 0,55 iken 60 / 29 / 10 / 20 / 15 / 25 idi (öğretmlerimiz, anektod gizliydi).
+  biyoloji9'da görünen 687 bilinmeyen kelimenin çoğu kitapta 1-2 kez geçen terim ("polimerizasyon", "notatum"...) ve tireleme
+  parçası ("ndaki", "rerek"); terim-gerçek hata ayrımı bu sayıyla yapılamaz. Olası iyileştirme: çekim eklerini kırpan kök
+  sayımı (ökaryot/ökaryotik birleşir).
 - Süzgeç araçlarının anahtarı kitaba özeldir (`f_tur_<kitap>`): aynı anahtarla kitap değişince tarayıcı önceki kitabın seçili
   türlerini gösteriyordu.
 - Varsayılan süzgeçle görünen bulgu (11.11.2026, ek sözlük güncellemesinden sonra): biyoloji9 60 (toplam 1357), fen3 29 (176),
