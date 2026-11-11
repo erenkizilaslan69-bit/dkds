@@ -302,6 +302,25 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 - İstiklal Marşı sayfaları (fen5 s.5, sosyal5 s.3) onarıldıktan sonra yazıma girer; metnin
   arkaik sözcükleri ("serhaddim", "vecd", "hürriyyet") düşük güvenli yanlış alarm üretir.
 
+## Demo paneli (`app.py`, Streamlit)
+
+- Başlatma: `DKDS_Baslat.bat` ya da `streamlit run app.py`; önce `python -m dkds on_hesapla` (altı kitap ≈ 2,5 dk, sonuç
+  `cikti\<kitap>_bulgular.json`). Mantık `dkds/panel.py` (süzme, sayfa işaretleme, CSV/Excel), analiz akışı `dkds/is_akisi.py`,
+  sunum örnekleri `dkds/one_cikan.py` (altı doğrulanmış örnek; `tests/test_panel.py` gerçek kitaplarda sayfa ve kutuyu doğrular).
+- **Varsayılan güven süzgeci 0,55** (`panel.VARSAYILAN_EN_DUSUK_GUVEN`): «bilinmeyen kelime» bulguları 0,50 güvenle üretilir ve
+  çoğu özel isim/yabancı sözcük/terimdir; 0,55 bunları gizler. «Tüm bulguları göster» her şeyi açar. Yan etki: 0,55 altındaki
+  sınıf-üstü okunabilirlik bulguları (0,40-0,54) ve **gerçek ama 0,5 güvenli yazım hataları (sosyal5 «öğretmlerimiz», «anektod»)
+  tabloda varsayılan olarak gizlidir**; «Öne çıkan bulgular» sekmesi süzgeçten bağımsızdır.
+- Süzgeç araçlarının anahtarı kitaba özeldir (`f_tur_<kitap>`): aynı anahtarla kitap değişince tarayıcı önceki kitabın seçili
+  türlerini gösteriyordu.
+- Varsayılan süzgeçle görünen bulgu (11.11.2026, ek sözlük güncellemesinden sonra): biyoloji9 60 (toplam 1357), fen3 29 (176),
+  fen5 10 (46), fen7 20 (76), sosyalbilgiler5 15 (83), turkce5 25 (119).
+- Yazım «bilinmeyen kelime» ek sözlüğü: TDK (sozluk.gov.tr/gts?ara=SÖZCÜK, istemci `User-Agent` ister, ara sıra boş yanıt döner;
+  tekrar denenmeli) kontrolüyle `ozmoz`, `karbohidrat`, `yakantop`, `infografik` eklendi. TDK'da olmayan ama gerçek biyoloji terimi
+  olan `ökaryot`, `prokaryot`, `substrat`, `katalaz`, `ökaryotik`, `hipertonik`, `histon`, `adezyon`, `dehidrasyon`,
+  `retikulum`, `endoplazmik`, `denatürasyon` kural gereği (yalnızca TDK'dakiler) eklenmedi. `gözlemevi` TDK'da var ama zeyrek'te
+  zaten var (eklenince yinelenen kayıt uyarısı verir); `gözlemevlerinin` gibi biçimlerin çözümlenememesi zeyrek sınırıdır.
+
 ## Çalışma şekli
 
 - Eren her modülün ne yaptığını hocaya ve Bakanlık sunumunda açıklayabilmeli: kod yazarken
