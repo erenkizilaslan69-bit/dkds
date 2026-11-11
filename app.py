@@ -126,8 +126,9 @@ def ozet_goster(kayit: dict) -> None:
     for sutun, kriter in zip(sutunlar[1:], ("yazim", "okunabilirlik", "tutarlilik")):
         sutun.metric(panel.kriter_adi(kriter), sayac.get(kriter, 0),
                      f"{gizli[kriter]} düşük güvenli gizli" if gizli.get(kriter) else None, delta_color="off")
-    st.caption(f"Yüksek güvenli: güven ≥ {esik:.2f}. Düşük güvenliler çoğunlukla «bilinmeyen kelime» (özel isim, yabancı "
-               "sözcük, terim olabilir) ve metin çıkarma şüphesidir; Bulgular sekmesinde «Tüm bulguları göster» ile açılır.")
+    st.caption(f"Yüksek güvenli: güven ≥ {esik:.2f}. Düşük güvenliler çoğunlukla kitapta 3 ya da daha fazla kez geçen «bilinmeyen "
+               "kelime»lerdir (alan terimi olabilir) ve metin çıkarma şüphesidir; Bulgular sekmesinde «Tüm bulguları "
+               "göster» ile açılır.")
 
     turler = sorted({b["tur"] for b in bulgular}, key=lambda t: -sum(1 for b in bulgular if b["tur"] == t))
     if turler:
@@ -194,7 +195,7 @@ def bulgular_sekmesi(kayit: dict, kitap_adi: str) -> None:
     secili_tur = f2.multiselect("Bulgu türü", turler, default=[t for t in turler if t not in panel.CIKARIM_TURLERI],
                                 format_func=panel.tur_adi, key=k("f_tur"), disabled=hepsi)
     en_dusuk = f3.slider("En düşük güven", 0.0, 1.0, panel.VARSAYILAN_EN_DUSUK_GUVEN, 0.05, key=k("f_guven"), disabled=hepsi,
-                         help="Bilinmeyen kelime bulguları 0,50 güvenlidir; varsayılan 0,55 bunları gizler.")
+                         help="Kitapta 1-2 kez geçen bilinmeyen kelime 0,50 güvenlidir (görünür); 3+ kez geçenler alan terimi olabilir ve 0,30 güvenle gizlenir.")
     cikarim = f4.checkbox("Olası metin çıkarma sorunlarını göster", value=False, key=k("f_cikarim"), disabled=hepsi,
                           help="Çıkarım sorunu ve karakter kaybı türleri kitap hatası olmayabilir; varsayılan olarak gizli.")
     if hepsi:

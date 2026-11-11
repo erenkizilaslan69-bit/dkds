@@ -95,7 +95,7 @@ class PanelAkisiTest(unittest.TestCase):
     def test_varsayilan_filtre_dusuk_guvenlileri_gizler_tumunu_goster_acar(self):
         at = self.ac()
         sayi = lambda a: next(m for m in (x.value for x in a.markdown) if "bulgu gösteriliyor" in m)  # noqa: E731
-        self.assertEqual(at.slider(key="f_guven_fen5").value, 0.55)
+        self.assertEqual(at.slider(key="f_guven_fen5").value, 0.5)
         self.assertFalse(at.checkbox(key="f_hepsi_fen5").value)
         self.assertRegex(" ".join(m.value for m in at.markdown), r"\d+ yüksek güvenli\*\*, \d+ düşük güvenli")
         varsayilan = int(sayi(at).split("**")[1])

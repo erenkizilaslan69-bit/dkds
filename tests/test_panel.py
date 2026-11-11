@@ -49,12 +49,13 @@ class SuzmeTest(unittest.TestCase):
         self.assertEqual(panel.bulgulari_suz(BULGULAR, kriterler=[]), [])
 
     def test_guven_sayilari_ve_varsayilan_esik(self):
-        self.assertEqual(panel.VARSAYILAN_EN_DUSUK_GUVEN, 0.55)
-        self.assertEqual(panel.guven_sayilari(BULGULAR), (3, 3))  # 0.9, 0.8, 0.7 yüksek; 0.5, 0.45, 0.3 düşük
+        self.assertEqual(panel.VARSAYILAN_EN_DUSUK_GUVEN, 0.5)
+        self.assertEqual(panel.guven_sayilari(BULGULAR), (4, 2))  # 0.9, 0.8, 0.7, 0.5 yüksek; 0.45, 0.3 düşük
         self.assertEqual(panel.guven_sayilari([]), (0, 0))
-        # varsayılan eşik 0,5'lik bilinmeyen kelime bulgularını gizler, kesin kural bulgularını bırakır
+        # varsayılan eşik 0,5'lik (1-2 kez geçen) bilinmeyen kelime bulgusunu GÖSTERİR, alan terimi olasılığı olan
+        # 0,3'lük bulguyu ve çıkarım türlerini gizler
         sonuc = panel.bulgulari_suz(BULGULAR, en_dusuk_guven=panel.VARSAYILAN_EN_DUSUK_GUVEN)
-        self.assertEqual([b["sayfa"] for b in sonuc], [2, 4])
+        self.assertEqual([b["sayfa"] for b in sonuc], [1, 2, 4])
 
     def test_turkce_adlar(self):
         self.assertEqual(panel.kriter_adi("tutarlilik"), "Tutarlılık")
@@ -191,6 +192,37 @@ class OneCikanBulgularGercekKitaplarTest(unittest.TestCase):
                     if isaret.ara:
                         self.assertEqual(len(isaret.kelimeler) >= 1, True, f"s.{isaret.sayfa}: «{isaret.ara}» bulunamadı")
                 belge.close()
+
+
+class VarsayilanFiltreSentetikTest(unittest.TestCase):
+    """Gerçek hatalar (1-2 kez geçen bilinmeyen kelime, 0,5 güven) varsayılan süzgeçte görünür; alan terimleri gizlenir."""
+
+    def test_gercek_hatalar_gorunur_alan_terimi_gizli(self):
+        hatalar = [bulgu(79, tur="bilinmeyen_kelime", sorunlu_metin="öğretmlerimiz", guven=0.5),
+                   bulgu(37, tur="bilinmeyen_kelime", sorunlu_metin="anektod", guven=0.5),
+                   bulgu(31, tur="noktalama_oncesi_bosluk", sorunlu_metin="hedeflenmektedi .", guven=0.9),
+                   bulgu(124, tur="noktalama_oncesi_bosluk", sorunlu_metin="sınıflandırılı .", guven=0.9)]
+        terim = bulgu(5, tur="bilinmeyen_kelime", sorunlu_metin="ökaryot", guven=0.3)
+        gorunen = panel.bulgulari_suz(hatalar + [terim], en_dusuk_guven=panel.VARSAYILAN_EN_DUSUK_GUVEN)
+        self.assertEqual([b["sorunlu_metin"] for b in gorunen], [b["sorunlu_metin"] for b in hatalar])
+
+
+@unittest.skipUnless(Path("cikti/fen5_bulgular.json").exists() and Path("cikti/sosyalbilgiler5_bulgular.json").exists(),
+                     "hazır analizler (cikti/) yok")
+class VarsayilanFiltreGercekKitaplarTest(unittest.TestCase):
+    def gorunenler(self, kitap):
+        kayit = panel.kayit_yukle(panel.hazir_kayitlar(Path("cikti"))[kitap])
+        return panel.bulgulari_suz(kayit["bulgular"], en_dusuk_guven=panel.VARSAYILAN_EN_DUSUK_GUVEN)
+
+    def test_dort_gercek_hata_varsayilan_tabloda_gorunur(self):
+        beklenen = {"fen5": [(31, "hedeflenmektedi"), (124, "sınıflandırılı")],
+                    "sosyalbilgiler5": [(79, "öğretmlerimiz"), (37, "anektod")]}
+        for kitap, hatalar in beklenen.items():
+            gorunen = self.gorunenler(kitap)
+            for sayfa, kelime in hatalar:
+                with self.subTest(kitap=kitap, kelime=kelime):
+                    self.assertTrue(any(b["sayfa"] == sayfa and kelime in b["sorunlu_metin"] for b in gorunen),
+                                    f"{kitap} s.{sayfa} «{kelime}» varsayılan tabloda görünmüyor")
 
 
 if __name__ == "__main__":

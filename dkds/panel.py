@@ -30,9 +30,9 @@ TUR_ADLARI = {
 }
 # Metin çıkarma hatasından kaynaklanması olası bulgu türleri: varsayılan olarak gizlenir
 CIKARIM_TURLERI = ("cikarim_sorunu", "karakter_kaybi")
-# Panelin varsayılan en düşük güveni. Bilinmeyen kelime bulguları 0,5 güvenle üretilir (çoğu özel isim, yabancı sözcük,
-# terim); 0,55 bunları gizler, kesin kural bulgularını (≥ 0,6) ve okunabilirlik bulgularının çoğunu bırakır.
-VARSAYILAN_EN_DUSUK_GUVEN = 0.55
+# Panelin varsayılan en düşük güveni. Kitapta 1-2 kez geçen bilinmeyen kelime (gerçek yazım hatası olabilir) 0,5 güvenle
+# kalır ve görünür; 3+ kez geçenler (alan terimi olasılığı) yazım analizörü tarafından 0,3'e düşürülür ve gizlenir.
+VARSAYILAN_EN_DUSUK_GUVEN = 0.5
 SUTUNLAR = ("Kitap", "Sayfa", "Paragraf", "Kriter", "Tür", "Sorunlu metin", "Açıklama", "Öneri", "Güven", "İlgili sayfa")
 
 
