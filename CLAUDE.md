@@ -215,11 +215,22 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   Ay/gün adları, form etiketleri ("Süre : 40 dk"), BÜYÜK HARFLİ başlık sözcükleri isim değil; Dünya/Türkiye/
   Anadolu gibi genel adlar yalnızca tarihte elenir. Harita/şema etiket paragrafları ve etkinlik künyeleri
   ("Adı … Amaç … Süre 80 dk") ölçü olgusu sayılmaz.
-- **Alıştırma/değerlendirme içeriği olgu değil:** yönergesinde "doğru ise", "yanlış ise", "D/Y", "boşlukları doldurunuz",
-  "işaretleyiniz", "cevaplayınız", "eşleştiriniz" geçen (≤ 40 kelimelik) paragraf ve altındaki maddeler, bir sonraki gerçek
-  başlığa ya da sayfa sonuna kadar olgu sayılmaz ("D Y" gibi sütun etiketleri başlık değil); `soru` türündeki paragraflar da
-  dışarıda (`TutarlilikAnalizoru.alistirma_paragraflari`). Neden: fen5 s.50 Pekiştirme İstasyonu'nda "5. Dünya, dolanma
-  hareketini 24 saatte tamamlar" bilerek yanlış yazılmış doğru/yanlış maddesidir, kitap hatası değil (s.49-s.50 testi).
+- **Alıştırma/değerlendirme içeriği olgu değil:** iki kademe. *Güçlü yönerge* ("doğru ise", "yanlış ise", "doğru ya da yanlış",
+  "D/Y", "boşlukları doldurunuz"; ≤ 40 kelimelik paragraf) altındaki maddeleri, ilk gerçek başlığa, ilk uzun gövde paragrafına
+  (> 30 kelime: anlatım/okuma metni) ya da sayfa sonuna kadar olgu dışı bırakır ("D Y" gibi sütun etiketleri başlık değil).
+  *Zayıf yönerge* ("cevaplayınız", "işaretleyiniz", "eşleştiriniz": etkinlik yönergesi de olabilir) yalnızca kendisini ve hemen
+  altındaki soru/liste/"(……)" maddelerini kapsar. `soru` türündeki paragraflar her zaman dışarıda
+  (`TutarlilikAnalizoru.alistirma_paragraflari`). Neden: fen5 s.50 Pekiştirme İstasyonu'nda "5. Dünya, dolanma hareketini 24
+  saatte tamamlar" bilerek yanlış yazılmış doğru/yanlış maddesidir, kitap hatası değil (s.49-s.50 testi). İlk sürüm blok
+  sayfa sonuna kadar sürüyor ve anlatımı da düşürüyordu (fen7 s.120 "3-4 saniye nefes", s.140 diyaliz); biyoloji9 s.157
+  "tahıl tarımı yaklaşık 10 000 yıl önce" basılı sayfayla kontrol edildi: 20. sorunun "Boş bırakılan bölümleri işaretleyiniz"
+  maddesi, yani gerçekten soru bağlamı; olgu dışı kalması doğru.
+- **Zamir çözümleme (varlık devralma):** cümlede özel isim yoksa (1) cümle zamir/gösterme sözcüğüyle başlıyorsa ("Bu dolanma
+  hareketi…", "Bunun…", "O…", "Söz konusu…", "Aynı…") varlık aynı paragraftaki en çok iki önceki cümleden (en yakından, cümlenin
+  ilk özel ismi) alınır; paragraf sınırı aşılmaz; (2) cümle başı çoğul isimse ("Yılanlar 10 ila 15 yıl yaşar") o isim varlıktır
+  ("Bunlar", "Onlar" hariç). `Olgu.varlik_kaynagi` = "cumle" / "onceki" / "cogul"; bulgu güveni önceki için ×0,8, çoğul için ×0,9
+  (iki olgudan düşük olan). Bağlaçla başlayan cümleler ("Ardından…", "Sonra…") denendi, yanlış varlık getirdi (turkce5 s.111
+  "Ardından … 2-3 dakikalık konuşma" → "Cumhuriyet"), kapsam dışı.
 - **Olgu anahtarı = varlık + nicelik türü + ayırıcı + bağlam.** Tür: sıcaklık/kütle/kuvvet/oran sabit; uzunlukta
   çap, yarıçap, uzaklık, yükseklik, derinlik, uzunluk...; zamanda dönme, dolanma, ömür, süre (en yakın sözcük).
   Ayırıcı: gece, gündüz, ortalama, kış, kutup, ekvator, yüzey, en yüksek/en düşük... (değerden önce geldiği için
@@ -233,19 +244,22 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   kök, zayıf = ≥ 0,15 ve ≥ 1). Tarihte varlık yeterli; olay türü (başlangıç: kuruldu/inşa / bitiş: terk edildi)
   ikisinde de belli ve farklıysa ayrı olay. Güven: fark/tolerans 1'de 0,45, 4'te 0,75; ölçüde bağlam benzerliğiyle
   hafif azalır.
-- **Sonuç (6 kitap, 4.11.2026, alıştırma filtresinden sonra):**
+- **Sonuç (6 kitap, 11.11.2026, alıştırma filtresi sınırı ve zamir çözümlemeden sonra):**
 
-  | kitap | olgu (tarih+sayısal) | varlıkla eşleşen | aday çelişki | belirsiz (zayıf) |
-  |---|---|---|---|---|
-  | fen3 | 14 (0+14) | 3 | 0 | 2 (1) |
-  | fen5 | 36 (0+36) | 20 | 0 | 4 (0) |
-  | fen7 | 21 (0+21) | 6 | 0 | 0 |
-  | biyoloji9 | 40 (0+40) | 8 | 0 | 0 |
-  | sosyalbilgiler5 | 43 (18+25) | 28 | 1 | 0 |
-  | turkce5 | 7 (0+7) | 0 | 0 | 0 |
+  | kitap | olgu (tarih+sayısal) | varlıkla eşleşen | aday çelişki | belirsiz (zayıf) | farklı nicelik |
+  |---|---|---|---|---|---|
+  | fen3 | 14 (0+14) | 6 | 0 | 0 | 0 |
+  | fen5 | 36 (0+36) | 23 | 0 | 4 (0) | 1 |
+  | fen7 | 25 (0+25) | 8 | 0 | 0 | 0 |
+  | biyoloji9 | 58 (0+58) | 11 | 0 | 0 | 0 |
+  | sosyalbilgiler5 | 43 (18+25) | 29 | 1 | 0 | 0 |
+  | turkce5 | 7 (0+7) | 0 | 0 | 0 | 0 |
 
-  Tarih olgusu çıkmayan fen/Türkçe kitaplarında sayısal olgu çıktı (161 olgunun 65'i, yani %40'ı varlıkla
-  eşleşti; alıştırma filtresi 202 → 161 olguya indirdi, belirsiz 16 → 6, güçlü 10 → 5; geri kalanı "Bu dönme hareketi…", "Yılanlar…" gibi adsız ya da çoğul özneli cümleler).
+  Varlıkla eşleşen oran %36,6 (67/183) → %42,1 (77/183); 10 olgunun varlığı zamir/çoğul özneden geldi (fen3 3 çoğul,
+  fen5 2 + 1 önceki cümle, biyoloji9 3 çoğul, sosyal5 1). Filtre sınırı olgu sayısını 161 → 183 yaptı (fen7 21 → 25,
+  biyoloji9 40 → 58 olgu geri geldi). Belirsiz 6 → 4: fen3 yılan/kaplumbağa çifti artık farklı varlık, fen5 s.49 dönme (24 saat)
+  ve dolanma (365 gün 6 saat) aynı varlıkta (Dünya) "farklı nicelik". Aday çelişki değişmedi (yalnızca Çatalhöyük).
+  Tarih olgusu çıkmayan fen/Türkçe kitaplarında sayısal olgu çıktı.
 - **Aday kontrolü (basılı sayfayla):** tek aday gerçek çelişki ve eşleştirme doğru: Çatalhöyük s.118 "yaklaşık
   9000 yıl önce" ↔ s.112 "MÖ 7500" (=9.500) ve s.147 "9 500 yıl önce"; üçü de kuruluş/ilk yerleşme, güven 0,45
   (fark 500 yıl, yuvarlamanın tam sınırı; s.118 tırnak içi dış kaynak alıntısı). Göbeklitepe (s.112, 114) ve
@@ -257,14 +271,14 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   koşul ölçüsü kuralıyla belirsiz. (3) **kod hatası:** "12 bin yıl önce"deki "bin" yazıyla sayı sanılıp Göbeklitepe
   için sahte 11.000 yıllık fark üretti; giderildi (test var). (4) ayırıcı yanlış bağlama: "gece -174, gündüz ise 125"
   cümlesinde "gündüz" -174'e atanıyordu; izleyen ilk ölçüye bağlanarak düzeltildi.
-- **Belirsiz (alıştırma filtresinden sonra; JSON `tutarlilik_belirsiz`; toplam 6, güçlü 5):** fen5 s.20 "Ay'ı 30 gün boyunca
-  gözleyin" ↔ s.35 "yedi yılda" ve s.49 "27 gün 8 saatte" (tür belli değil; farklı nicelik; 3 çift); fen3 s.79/s.50 "yılan
-  10-15 yıl yaşar" ↔ s.80 "kaplumbağa 80 yıl" (farklı hayvan; 2 çift); fen5 s.67 "10 N'lık" ↔ s.97 "20 N'dı" (dinamometre).
+- **Belirsiz (JSON `tutarlilik_belirsiz`; toplam 4):** fen5 s.20 "Ay'ı 30 gün boyunca gözleyin" ↔ s.35 "yedi yılda" ve
+  s.49 "27 gün 8 saatte" (tür belli değil; farklı nicelik; 3 çift); fen5 s.67 "10 N'lık" ↔ s.97 "20 N'dı" (dinamometre; s.97
+  "Bu arada…" cümlesi varlığı yanlış olarak önceki cümlenin başındaki "Arkadaşımız"dan aldı).
   Filtreden önce 16 çiftin 10'u fen5'teydi: s.49 "365 gün 6 saat" ↔ s.50 "24 saatte" (bilerek yanlış D/Y maddesi) ve
   s.66-67-70 dinamometre soruları (filtreyle çıktı). Filtre aşırı kapsayabilir: yönergeden sonra sayfa sonuna kadar
-  süren blokta anlatım paragrafı da düşer (fen7 s.140 "Haftada üç gün diyaliz", s.120 "3-4 saniye nefes tutun").
-- **Bilinen sınırlar:** (1) Zamirli ya da çoğul/sıradan özneli cümleler ("Bu dönme hareketi…", "Yılanlar…") varlıksız;
-  anafora çözülmüyor. (2) Cümlede birden çok varlık varsa ("Dünya ve Ay, Güneş etrafındaki…") yalnızca en yakın
+  süren blokta anlatım da düşüyordu; blok sınırı sıkılaştırıldı (yukarıda).
+- **Bilinen sınırlar:** (1) Zamir çözümleme kaba: önceki cümlenin ilk özel ismi alınır (yanlış isim gelebilir: "Arkadaşımız"), bağlaçla başlayan
+  ya da öznesi hiç olmayan cümleler ("Ardından…") çözülmüyor; çoğul özne olmayan sıradan özneli cümleler ("Bir tur…") varlıksız. (2) Cümlede birden çok varlık varsa ("Dünya ve Ay, Güneş etrafındaki…") yalnızca en yakın
   (ölçüde en yakın iki) isim alınır. (3) Tür sözlüğü küçük (zaman ve uzunlukta 12 tür); tür bulunamazsa çift
   belirsiz olur. (4) Aynı varlığın farklı olayları yalnızca başlangıç/bitiş ayrımıyla ayrılıyor. (5) s.114
   "Çemberimsi anıtsal yapılar, MÖ 8000 civarında…" artık varlıksız kalıyor (doğrusu Göbeklitepe yapıları).
