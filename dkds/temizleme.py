@@ -14,8 +14,13 @@ LIGATURLER = {
     "ﬄ": "ffl",
 }
 
-_TIRELEME = re.compile(rf"(\w)-[ \t]*\n[ \t]*([{KUCUK_HARFLER}])")
-_GERCEK_TIRE = re.compile(r"(\w)-[ \t]*\n[ \t]*(?=[A-ZÇĞİÖŞÜÂÎÛ0-9])")
+# Satır sonundaki yumuşak tire (U+00AD) PDF'te görünen tire olarak basılır ama sözcüğün parçasıdır: sonraki satırla
+# boşluksuz birleştirilir (biyoloji9.pdf'te 952, turkce5.pdf'te 37 satır sonu; eskiden "sindi rerek" diye ayrılıyordu).
+_YUMUSAK_TIRE_SATIR_SONU = re.compile("\u00ad[ \t]*\n[ \t]*")
+# Satır sonu tiresi: "-", U+2010 (tire), U+2011 (bölünmez tire). Alt satır küçük harfle başlıyorsa kaldırılır.
+_TIRE = "-\u2010\u2011"
+_TIRELEME = re.compile(rf"(\w)[{_TIRE}][ \t]*\n[ \t]*([{KUCUK_HARFLER}])")
+_GERCEK_TIRE = re.compile(rf"(\w)[{_TIRE}][ \t]*\n[ \t]*(?=[A-ZÇĞİÖŞÜÂÎÛ0-9])")
 _SATIR_SONU = re.compile(r"[ \t]*\n[ \t]*")
 _COKLU_BOSLUK = re.compile(r"[ \t]+")  # tek sekme de ("•\tMadde") boşluğa dönüşür
 _DOLGU = re.compile(r"[.…_]{5,}")
@@ -30,8 +35,10 @@ def temizle(metin: str) -> str:
     """
     for lig, karsilik in LIGATURLER.items():
         metin = metin.replace(lig, karsilik)
-    metin = metin.replace("­", "")  # yumuşak tire (görünmez heceleme işareti)
-    metin = metin.replace(" ", " ")  # bölünmez boşluk
+    metin = _YUMUSAK_TIRE_SATIR_SONU.sub("", metin)  # satır sonu: "sindi-" + "rerek" -> "sindirerek"
+    metin = metin.replace("\u00ad", "")  # satır ortasındaki yumuşak tire (görünmez heceleme işareti)
+    metin = metin.replace("\uf0f5", "ı")  # eski yazı tipinde ı için özel kullanım kodu (İstiklal Marşı, Öğrenci Andı)
+    metin = metin.replace("\u00a0", " ")  # bölünmez boşluk
     metin = _TIRELEME.sub(r"\1\2", metin)
     metin = _GERCEK_TIRE.sub(r"\1-", metin)
     metin = _SATIR_SONU.sub(" ", metin)

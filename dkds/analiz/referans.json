@@ -1,21 +1,21 @@
 {
   "surum": 1,
-  "olcum_surumu": 3,
+  "olcum_surumu": 4,
   "aciklama": "Sınıf başına paragraf (birim) bazında Ateşman ve Bezirci-Yılmaz puanlarının ortancası, %10 ve %90 dilimleri. Ateşman'da düşük puan, Bezirci-Yılmaz'da yüksek puan zordur. Ara_deger=true olan sınıflar komşu sınıflardan doğrusal ara değerdir. olcum_surumu, referansı üreten okunabilirlik.py ölçümünün sürümüdür; ölçüm değişirse referans yeniden üretilmelidir. Üretim: python -m dkds referans -k SINIF PDF ...",
   "siniflar": {
     "3": {
       "ara_deger": false,
       "atesman": {
-        "ortanca": 56.115,
-        "p10": 38.283,
-        "p90": 87.064
+        "ortanca": 55.962,
+        "p10": 38.27,
+        "p90": 83.845
       },
       "bezirci_yilmaz": {
-        "ortanca": 11.226,
-        "p10": 5.884,
-        "p90": 17.327
+        "ortanca": 11.239,
+        "p10": 5.855,
+        "p90": 17.367
       },
-      "birim_sayisi": 133,
+      "birim_sayisi": 132,
       "kitaplar": [
         "fen3.pdf"
       ]
@@ -23,14 +23,14 @@
     "4": {
       "ara_deger": true,
       "atesman": {
-        "ortanca": 52.808,
-        "p10": 35.211,
-        "p90": 76.986
+        "ortanca": 52.731,
+        "p10": 35.204,
+        "p90": 75.376
       },
       "bezirci_yilmaz": {
-        "ortanca": 12.959,
-        "p10": 7.196,
-        "p90": 20.062
+        "ortanca": 12.965,
+        "p10": 7.182,
+        "p90": 20.082
       },
       "kaynak_siniflar": [
         3,
@@ -92,14 +92,14 @@
     "8": {
       "ara_deger": true,
       "atesman": {
-        "ortanca": 44.843,
-        "p10": 27.053,
-        "p90": 62.657
+        "ortanca": 43.495,
+        "p10": 25.85,
+        "p90": 61.226
       },
       "bezirci_yilmaz": {
-        "ortanca": 17.297,
-        "p10": 9.894,
-        "p90": 26.362
+        "ortanca": 17.334,
+        "p10": 10.109,
+        "p90": 26.548
       },
       "kaynak_siniflar": [
         7,
@@ -109,16 +109,16 @@
     "9": {
       "ara_deger": false,
       "atesman": {
-        "ortanca": 44.309,
-        "p10": 26.525,
-        "p90": 62.546
+        "ortanca": 41.613,
+        "p10": 24.119,
+        "p90": 59.684
       },
       "bezirci_yilmaz": {
-        "ortanca": 18.704,
-        "p10": 10.467,
-        "p90": 28.489
+        "ortanca": 18.778,
+        "p10": 10.898,
+        "p90": 28.86
       },
-      "birim_sayisi": 348,
+      "birim_sayisi": 342,
       "kitaplar": [
         "biyoloji9.pdf"
       ]

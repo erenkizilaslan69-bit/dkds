@@ -242,7 +242,7 @@ INCELENEN_TURLER = {"govde"}
 # Ölçümü değiştiren her düzenlemede (cümle ayırma, hece/kelime sayımı, birim oluşturma,
 # atlama kuralları, formüller) artırılır. referans.json bu sürümle üretilir; sürüm
 # uyuşmazsa referans yeniden üretilmelidir: python -m dkds referans (bkz. README).
-OLCUM_SURUMU = 3  # 2: form/künye atlanıyor; 3: kopya metin katmanı temizleniyor, çıkarım şüphesi birimleri ölçüm dışı
+OLCUM_SURUMU = 4  # 2: form/künye atlanıyor; 3: kopya metin katmanı temizleniyor, çıkarım şüphesi birimleri ölçüm dışı; 4: satır sonu yumuşak tire birleştiriliyor
 
 # Bundan az kelimeli gövde paragrafları aynı sayfadaki komşu gövde paragraflarıyla
 # birleştirilerek değerlendirilir; çok kısa metinde formüller güvenilir sonuç vermez.
