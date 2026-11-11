@@ -4,6 +4,7 @@
     python -m dkds analiz <pdf> [--sinif 5] [-o bulgular.json]
                                                              yazım analizi; --sinif verilirse
                                                              okunabilirlik analizi de yapılır
+    python -m dkds on_hesapla [pdf ...]                      veri\ klasöründeki PDF'lerin tam analizini cikti\ klasörüne kaydeder
     python -m dkds referans -k 3 <pdf> -k 5 <pdf> ... [-o referans.json]
                                                              sınıf başına okunabilirlik referansı üretir
 """
@@ -55,9 +56,7 @@ def cikar(argumanlar: list[str]) -> int:
 
 
 def analiz(argumanlar: list[str]) -> int:
-    from .analiz.okunabilirlik import OkunabilirlikAnalizoru
-    from .analiz.tutarlilik import TutarlilikAnalizoru
-    from .analiz.yazim import YazimAnalizoru  # zeyrek yüklemesi yalnızca analizde
+    from .is_akisi import analiz_calistir, analiz_kaydi
 
     ayrac = argparse.ArgumentParser(
         prog="dkds analiz", description="DKDS – PDF'te yazım, okunabilirlik ve tutarlılık analizi yapar."
@@ -74,23 +73,10 @@ def analiz(argumanlar: list[str]) -> int:
         return 1
 
     sonuc = pdf_oku(arg.pdf, ocr=not arg.ocr_kapali)
-    bulgular = YazimAnalizoru().analiz_et(sonuc.paragraflar)
+    bulgular, okunabilirlik, tutarlilik = analiz_calistir(sonuc, arg.sinif)
 
-    okunabilirlik = None
-    if arg.sinif:
-        okunabilirlik = OkunabilirlikAnalizoru(arg.sinif).incele(sonuc.paragraflar)
-        bulgular += okunabilirlik.bulgular
-
-    tutarlilik = TutarlilikAnalizoru().incele(sonuc.paragraflar)
-    bulgular += tutarlilik.bulgular
-
-    cikti =arg.cikti or Path("cikti") / f"{arg.pdf.stem}_bulgular.json"
-    kayit = {"kaynak": sonuc.kaynak, "uyarilar": sonuc.uyarilar, "bulgular": [asdict(b) for b in bulgular]}
-    if okunabilirlik:
-        kayit["okunabilirlik_ozeti"] = okunabilirlik.ozet
-    kayit["tutarlilik_ozeti"] = tutarlilik.ozet
-    kayit["tutarlilik_belirsiz"] = [x.sozluk() for x in tutarlilik.belirsizler]
-    _json_yaz(cikti, kayit)
+    cikti = arg.cikti or Path("cikti") / f"{arg.pdf.stem}_bulgular.json"
+    _json_yaz(cikti, analiz_kaydi(sonuc, bulgular, okunabilirlik, tutarlilik, arg.sinif))
 
     paragraf_turu = {(p.sayfa, p.paragraf): p.tur for p in sonuc.paragraflar}
     print(f"Kaynak  : {sonuc.kaynak}")
@@ -105,6 +91,36 @@ def analiz(argumanlar: list[str]) -> int:
     _tutarlilik_ozeti_yaz(tutarlilik.ozet, tutarlilik.bulgular)
     _uyarilari_yaz(sonuc.uyarilar)
     print(f"\nBulgular kaydedildi: {cikti}")
+    return 0
+
+
+def on_hesapla(argumanlar: list[str]) -> int:
+    """veri/ klasöründeki bütün PDF'leri analiz edip sonuçları cikti/ klasörüne kaydeder (panel anında açsın diye)."""
+    import time
+
+    from .is_akisi import kitabi_analiz_et, sinifi_dosya_adindan_bul
+
+    ayrac = argparse.ArgumentParser(
+        prog="dkds on_hesapla", description="DKDS – klasördeki bütün PDF'lerin tam analizini önceden hesaplar."
+    )
+    ayrac.add_argument("--veri", type=Path, default=Path("veri"), help="PDF klasörü (varsayılan: veri)")
+    ayrac.add_argument("--cikti", type=Path, default=Path("cikti"), help="Sonuç klasörü (varsayılan: cikti)")
+    ayrac.add_argument("pdf", nargs="*", type=Path, help="Yalnızca bu PDF'ler (verilmezse klasörün hepsi)")
+    arg = ayrac.parse_args(argumanlar)
+
+    pdfler = arg.pdf or sorted(arg.veri.glob("*.pdf"))
+    if not pdfler:
+        print(f"PDF bulunamadı: {arg.veri}", file=sys.stderr)
+        return 1
+    for pdf in pdfler:
+        sinif = sinifi_dosya_adindan_bul(pdf)
+        baslangic = time.time()
+        print(f"{pdf.name} (sınıf {sinif or 'bilinmiyor'}) analiz ediliyor...", flush=True)
+        kayit = kitabi_analiz_et(pdf, sinif)
+        yol = arg.cikti / f"{pdf.stem}_bulgular.json"
+        _json_yaz(yol, kayit)
+        sayac = Counter(b["kriter"] for b in kayit["bulgular"])
+        print(f"  {len(kayit['bulgular'])} bulgu {dict(sayac)}; {time.time() - baslangic:.0f} sn -> {yol}", flush=True)
     return 0
 
 
@@ -243,6 +259,8 @@ def main() -> int:
     argumanlar = sys.argv[1:]
     if argumanlar and argumanlar[0] == "analiz":
         return analiz(argumanlar[1:])
+    if argumanlar and argumanlar[0] == "on_hesapla":
+        return on_hesapla(argumanlar[1:])
     if argumanlar and argumanlar[0] == "referans":
         return referans(argumanlar[1:])
     return cikar(argumanlar)
