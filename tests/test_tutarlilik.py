@@ -539,5 +539,80 @@ class AlistirmaTest(unittest.TestCase):
         self.assertEqual(self.incele(soru).olgular, [])
 
 
+class ZamirCozumlemeTest(unittest.TestCase):
+    """Varlığı olmayan cümlelerde varlık önceki cümleden (aynı paragraf, en çok iki cümle) ya da çoğul özneden alınır."""
+
+    # fen5 s.49 paragraf 4 (birebir)
+    S49 = ("Dünya’nın kendi ekseni etrafındaki dönme hareketi saatin dönme yönünün tersine yani batıdan doğuya doğrudur. "
+           "Bu dönme hareketi 24 saatte tamamlanır. Dünya'nın Güneş etrafındaki dolanma hareketi de saatin dönme "
+           "yönünün tersinedir. Bu dolanma hareketi yaklaşık 365 gün 6 saatte tamamlanır.")
+
+    def olgular(self, *paragraflar):
+        return TutarlilikAnalizoru().olgulari_cikar(list(paragraflar))
+
+    def test_bu_dolanma_hareketi_varligi_onceki_cumleden_alir(self):
+        olgular = self.olgular(paragraf(self.S49, 49, 4))
+        self.assertEqual([(o.ifade, o.varlik, o.varlik_kaynagi) for o in olgular],
+                         [("24 saatte", "Dünya", "onceki"), ("yaklaşık 365 gün 6 saatte", "Dünya", "onceki")])
+        self.assertEqual([o.tur for o in olgular], ["dönme", "dolanma"])  # tür farkı korunur
+
+    def test_dolanma_ve_donme_ayni_varlikta_farkli_nicelik_sayilir(self):
+        # s.49 "Bu dolanma hareketi 365 gün 6 saat" ile "Dünya'nın dönme hareketi 24 saat": aday değil, farklı nicelik
+        ilk, ikinci = self.S49.split(" Dünya'nın Güneş")
+        sonuc = TutarlilikAnalizoru().incele([paragraf(ilk, 49, 4), paragraf("Dünya'nın Güneş" + ikinci, 50, 1)])
+        self.assertEqual(sonuc.bulgular, [])
+        self.assertEqual(sonuc.ozet["farkli_nicelik"], 1)
+        self.assertEqual(sonuc.ozet["varlik_devralinan"], 2)
+
+    def test_paragraf_siniri_asilmaz(self):
+        # önceki paragraftaki isim devralınmaz
+        olgular = self.olgular(paragraf("Dünya, Güneş’in etrafında döner.", 49, 1),
+                               paragraf("Bu hareket 24 saatte tamamlanır.", 49, 2))
+        self.assertEqual([(o.varlik, o.varlik_kaynagi) for o in olgular], [(None, "cumle")])
+
+    def test_en_cok_iki_cumle_geriye_bakilir(self):
+        metin = "Dünya, Güneş’in etrafında döner. Bu bir. Bu iki. Bu hareket 24 saatte tamamlanır."
+        self.assertIsNone(self.olgular(paragraf(metin, 49))[0].varlik)
+        metin = "Dünya, Güneş’in etrafında döner. Bu bir. Bu hareket 24 saatte tamamlanır."
+        self.assertEqual(self.olgular(paragraf(metin, 49))[0].varlik, "Dünya")
+
+    def test_zamirle_baslamayan_cumle_devralmaz(self):
+        olgular = self.olgular(paragraf("Dünya, Güneş’in etrafında döner. Bir tur 24 saatte tamamlanır.", 49))
+        self.assertEqual([o.varlik for o in olgular], [None])
+
+    def test_cumlede_isim_varsa_devralinmaz(self):
+        olgular = self.olgular(paragraf("Dünya, Güneş’in etrafında döner. Bu sırada Ay, 27 gün 8 saatte döner.", 49))
+        self.assertEqual([(o.varlik, o.varlik_kaynagi) for o in olgular], [("Ay", "cumle")])
+
+    def test_cogul_ozne_varlik_olur(self):
+        # fen3 s.79-80: özne çoğul ve cümle başında; farklı hayvanlar eşleşmez
+        sonuc = TutarlilikAnalizoru().incele([paragraf("Yılanlar genellikle 10 ila 15 yıl yaşar ve ölür.", 79),
+                                              paragraf("Kaplumbağalar yaklaşık 80 yıl yaşar ve ölür.", 80)])
+        self.assertEqual([(o.varlik, o.varlik_kaynagi) for o in sonuc.olgular],
+                         [("Yılanlar", "cogul"), ("Kaplumbağalar", "cogul")])
+        self.assertEqual((sonuc.bulgular, sonuc.belirsizler), ([], []))
+
+    def test_ayni_cogul_ozne_celisirse_aday_olur_ve_guven_duser(self):
+        a = "Yılanlar genellikle 10 yıl yaşar ve ölür."
+        b = "Yılanlar genellikle 80 yıl yaşar ve ölür."
+        bulgu, = TutarlilikAnalizoru().incele([paragraf(a, 5), paragraf(b, 9)]).bulgular
+        ad_eslesen = TutarlilikAnalizoru().incele([paragraf(a.replace("Yılanlar", "Ay’ın"), 5),
+                                                   paragraf(b.replace("Yılanlar", "Ay’ın"), 9)]).bulgular
+        self.assertEqual({bulgu.sayfa, bulgu.ilgili_sayfa}, {5, 9})
+        self.assertAlmostEqual(bulgu.guven, ad_eslesen[0].guven * 0.9, places=2)
+
+    def test_zamirden_bulunan_varlikla_tarih_celiskisi_adaydir_ve_guveni_dusuktur(self):
+        dogrudan = [paragraf("Anadolu’daki Çatalhöyük MÖ 7500 yılında kurulmuştur.", 112),
+                    paragraf("Anadolu’daki Çatalhöyük yaklaşık 9000 yıl önce kurulmuştur.", 118)]
+        zamirli = [dogrudan[0], paragraf("Anadolu’daki Çatalhöyük bir yerleşimdir. "
+                                         "Bu yerleşim yaklaşık 9000 yıl önce kurulmuştur.", 118)]
+        d, = TutarlilikAnalizoru().incele(dogrudan).bulgular
+        z, = TutarlilikAnalizoru().incele(zamirli).bulgular
+        self.assertAlmostEqual(z.guven, d.guven * 0.8, places=2)
+
+    def test_pronomen_cogul_sayilmaz(self):
+        self.assertIsNone(self.olgular(paragraf("Bunlar genellikle 24 saatte tamamlanır ve sonra yeniden başlar.", 49))[0].varlik)
+
+
 if __name__ == "__main__":
     unittest.main()

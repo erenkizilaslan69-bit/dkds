@@ -119,6 +119,13 @@ _YONERGE_ZAYIF = re.compile(  # zayıf: etkinlik yönergesi de olabilir; yalnız
 _MADDE_BASI = re.compile(r"^\(\s*[….\s]*\)")  # "(……) Türkiye'de ..." doğru/yanlış maddesi
 YONERGE_EN_COK_KELIME = 40  # daha uzun paragraf yönerge değil anlatımdır
 BLOK_BITIREN_KELIME = 30  # alıştırma maddeleri kısadır; bundan uzun gövde paragrafı anlatım/okuma metnidir
+# Zamir çözümleme: varlığı olmayan cümle zamir/gösterme sözcüğüyle başlıyorsa varlık önceki cümleden alınır
+# (bağlaçla başlayan cümleler denendi: "Ardından tahminlerinize..." gibi yanlış varlık getirdi, kapsam dışı)
+_ANAFORA = re.compile(r"(?:bu|bun\w*|şu|şun\w*|o|onun|onlar\w*|ona|onu|söz konusu|aynı)\b", re.IGNORECASE)
+ANAFORA_GERI_CUMLE = 2  # en çok bu kadar önceki cümleye (aynı paragrafta) bakılır
+_COGUL_OZNE = re.compile(r"([A-ZÇĞİÖŞÜ][a-zçğıöşü]{3,}(?:lar|ler))\b")
+_COGUL_DISI = frozenset("bunlar onlar şunlar aşağıdakiler yukarıdakiler diğerleri bazıları hepsi".split())
+VARLIK_KAYNAGI_CARPANI = {"cumle": 1.0, "cogul": 0.9, "onceki": 0.8}  # bulgu güveni bununla çarpılır
 KUNYE_EN_AZ_ETIKET = 2  # etkinlik künyesi ("Adı ... Amaç ... Süre 80 dk"): süre/amaç karşılaştırılacak bir olgu değil
 # Öbeğin son sözcüğü bunlardan biriyse ("Karain Mağarası") son sözcükle eşleşme yapılmaz: genel ad
 # olduğundan farklı varlıkları birleştirirdi
@@ -160,6 +167,9 @@ class Olgu:
     # Aynı cümledeki, farklı boyuttaki diğer ölçüler: (boyut, alt, üst, tolerans). "60 kg kütleli cismin
     # ağırlığı 100 N" cümlesinde 100 N'nin koşulu 60 kg'dır.
     kosullar: tuple = ()
+    # Varlığın nereden geldiği: "cumle" (cümlede geçen özel isim), "onceki" (zamirli cümlede önceki cümleden
+    # devralındı), "cogul" (çoğul özne: "Yılanlar 10 yıl yaşar"). Devralınan varlığın güveni düşürülür.
+    varlik_kaynagi: str = "cumle"
 
     @property
     def deger(self) -> float:
@@ -596,20 +606,44 @@ class TutarlilikAnalizoru:
                 dis.add((p.sayfa, p.paragraf))
         return dis
 
+    @staticmethod
+    def _varlik_devral(cumle: str, bas: int, onceki: Sequence[str], kucukler: frozenset[str],
+                       orta_buyukler: frozenset[str], kisa: bool, tarih: bool) -> tuple[list[str], str]:
+        """Cümlede özel isim yoksa varlığı başka yerden bul: (adlar, kaynak).
+
+        1. Zamirli/gösterme sözcüklü cümle ("Bu dolanma hareketi ... 365 gün 6 saatte"): aynı paragraftaki
+           önceki cümleden (en çok ANAFORA_GERI_CUMLE) ilk özel isim alınır; kaynak "onceki".
+        2. Çoğul özneli cümle ("Yılanlar 10 ila 15 yıl yaşar"): cümle başındaki çoğul isim varlıktır; "cogul".
+        Bulunamazsa ([], "cumle")."""
+        if _ANAFORA.match(cumle):
+            for geri in onceki:
+                adlar = yakin_varliklar(geri, 0, 0, kucukler, orta_buyukler, kisa, tarih, en_fazla=1)
+                if adlar:
+                    return adlar, "onceki"
+            return [], "cumle"
+        m = _COGUL_OZNE.match(cumle)
+        if m and m.end() <= bas and _kucuk(m.group(1)) not in _COGUL_DISI:
+            return [m.group(1)], "cogul"
+        return [], "cumle"
+
     def olgulari_cikar(self, paragraflar: Iterable[Paragraf]) -> list[Olgu]:
         paragraflar = list(paragraflar)
         dis = self.alistirma_paragraflari(paragraflar)
         paragraflar = [p for p in paragraflar if (p.sayfa, p.paragraf) not in dis]
-        cumleler = [(p, c) for p in paragraflar for c in cumlelere_ayir(p.metin)]
+        cumleler = []  # (paragraf, cümle, aynı paragraftaki önceki cümleler: en yakın başta, en çok ANAFORA_GERI_CUMLE)
+        for p in paragraflar:
+            liste = cumlelere_ayir(p.metin)
+            for i, c in enumerate(liste):
+                cumleler.append((p, c, tuple(reversed(liste[max(0, i - ANAFORA_GERI_CUMLE):i]))))
         kucukler = frozenset(_kucuk(k) for p in paragraflar for k in _KUCUK_KELIME.findall(p.metin))
         orta_buyukler = frozenset(
             _kucuk(_KESME.split(m.group(0))[0])
-            for _, c in cumleler for m in _BUYUK_HARFLI.finditer(c)
+            for _, c, _ in cumleler for m in _BUYUK_HARFLI.finditer(c)
             if re.search(r"\w", c[:m.start()])
         )
 
         olgular: list[Olgu] = []
-        for p, cumle in cumleler:
+        for p, cumle, onceki in cumleler:
             kisa = len(p.metin.split()) <= 6
             r = rakamlastir(cumle)
             tarihler = [(*r.eski(bas, son), *geri) for bas, son, *geri in _tarihleri_bul(r.yeni, self.referans_yili)]
@@ -629,6 +663,9 @@ class TutarlilikAnalizoru:
             for bas, son, alt, ust, yaklasik, tolerans, boyut, birim in adaylar:
                 adlar = yakin_varliklar(cumle, bas, son, kucukler, orta_buyukler, kisa, tarih=boyut == "tarih",
                                         en_fazla=1 if boyut == "tarih" else OLCU_VARLIK_SAYISI)
+                kaynak = "cumle"
+                if not adlar:
+                    adlar, kaynak = self._varlik_devral(cumle, bas, onceki, kucukler, orta_buyukler, kisa, boyut == "tarih")
                 varlik = adlar[0] if adlar else None
                 kosullar = tuple((d[6], d[2], d[3], d[5]) for d in adaylar
                                  if d[6] not in (boyut, "tarih") and boyut != "tarih")
@@ -641,6 +678,7 @@ class TutarlilikAnalizoru:
                     varlik=varlik, anahtar=_kucuk(varlik) if varlik else None, boyut=boyut, tur=tur,
                     ayirici=ayirici_bul(cumle, bas, son, digerleri), baglam=baglam_bul(cumle, bas, son, varlik, digerleri),
                     anahtarlar=tuple(dict.fromkeys(k for ad in adlar for k in varlik_anahtarlari(ad))), kosullar=kosullar,
+                    varlik_kaynagi=kaynak,
                 ))
         return olgular
 
@@ -671,6 +709,7 @@ class TutarlilikAnalizoru:
             "tarih_olgusu": sum(1 for o in olgular if o.boyut == "tarih"),
             "sayisal_olgu": sum(1 for o in olgular if o.boyut != "tarih"),
             "varlikli_olgu": len(varlikli),
+            "varlik_devralinan": sum(1 for o in varlikli if o.varlik_kaynagi != "cumle"),
             "varliksiz_olgu": len(olgular) - len(varlikli),
             "varlik_sayisi": len({o.anahtar for o in varlikli}),
             "birden_cok_sayfadaki_varlik": sum(
@@ -791,6 +830,8 @@ class TutarlilikAnalizoru:
         guven = guven_hesapla(asil, ilgili)
         if not tarih:
             guven *= 0.85 + 0.15 * min(1.0, baglam_benzerligi(asil, ilgili) / 0.3)
+        # zamirden/çoğul özneden bulunan varlık daha az kesin
+        guven *= min(VARLIK_KAYNAGI_CARPANI[asil.varlik_kaynagi], VARLIK_KAYNAGI_CARPANI[ilgili.varlik_kaynagi])
         return Bulgu(
             sayfa=asil.sayfa, paragraf=asil.paragraf, kriter=KRITER,
             sorunlu_metin=asil.cumle if len(asil.cumle) <= 240 else asil.cumle[:237] + "…",
