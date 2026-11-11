@@ -4,7 +4,7 @@
     python -m dkds analiz <pdf> [--sinif 5] [-o bulgular.json]
                                                              yazım analizi; --sinif verilirse
                                                              okunabilirlik analizi de yapılır
-    python -m dkds on_hesapla [pdf ...]                      veri\ klasöründeki PDF'lerin tam analizini cikti\ klasörüne kaydeder
+    python -m dkds on_hesapla [pdf ...]                      veri/ klasöründeki PDF'lerin tam analizini cikti/ klasörüne kaydeder
     python -m dkds referans -k 3 <pdf> -k 5 <pdf> ... [-o referans.json]
                                                              sınıf başına okunabilirlik referansı üretir
 """
