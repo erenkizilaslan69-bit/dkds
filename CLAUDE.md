@@ -103,19 +103,21 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 - **Referans kitapları** (`python -m dkds referans -k SINIF PDF ...` ile üretilir): fen3 (160 sayfa,
   serinin 1. kitabı), fen5 (152) ve sosyalbilgiler5 (154) → 5. sınıf (392 birim), fen7 (153 sayfa,
   1. kitap; sözlük ve kaynakçayla bittiği için eksik değil), biyoloji9 (184). Ara sınıflar (4, 6, 8)
-  komşulardan doğrusal ara değerdir. Birim bazında Ateşman (düşük = zor), ölçüm sürümü 3:
+  komşulardan doğrusal ara değerdir. Birim bazında Ateşman (düşük = zor), ölçüm sürümü 4 (sürüm 3'e göre yalnızca
+  satır sonu yumuşak tire birleştirmesi değişti: fen3 ve biyoloji9 satırları; 5. ve 7. sınıf aynı):
 
   | sınıf | birim | %10 | ortanca | %90 | B-Y ortanca |
   |---|---|---|---|---|---|
-  | 3 | 133 | 38,3 | 56,1 | 87,1 | 11,2 |
-  | 4 | ara | 35,2 | 52,8 | 77,0 | 13,0 |
+  | 3 | 132 | 38,3 | 56,0 | 83,8 | 11,2 |
+  | 4 | ara | 35,2 | 52,7 | 75,4 | 13,0 |
   | 5 | 392 | 32,1 | 49,5 | 66,9 | 14,7 |
   | 6 | ara | 29,9 | 47,4 | 64,8 | 15,3 |
   | 7 | 212 | 27,6 | 45,4 | 62,8 | 15,9 |
-  | 8 | ara | 27,1 | 44,8 | 62,7 | 17,3 |
-  | 9 | 348 | 26,5 | 44,3 | 62,5 | 18,7 |
+  | 8 | ara | 25,8 | 43,5 | 61,2 | 17,3 |
+  | 9 | 342 | 24,1 | 41,6 | 59,7 | 18,8 |
 
-- **Sınıf eğilimi gerçek ama zayıf ve eşit adımlı değil** (ölçüm sürümü 3, bootstrap %95 aralığı):
+- **Sınıf eğilimi gerçek ama zayıf ve eşit adımlı değil** (ölçüm sürümü 3 değerleri; sürüm 4'te biyoloji9 ortancası -2,7 düştü
+  ve bu aralıklar yeniden hesaplanmadı, fen7→biyoloji9 farkı büyümüş olmalı; bootstrap %95 aralığı):
   fen3→fen5 Ateşman ortanca farkı -1,2 [-6,3; +2,7] gürültü (B-Y +1,5 gerçek), fen5→fen7 -9,5 [-12,2; -6,5]
   gerçek, fen7→biyoloji9 -1,1 [-3,5; +1,6] gürültü (B-Y +2,8 gerçek), fen3→biyoloji9 -11,8 gerçek;
   Spearman (n=836) Ateşman -0,30, Bezirci-Yılmaz +0,44. **Ders etkisi bir sınıf adımı kadar büyük:**
@@ -126,15 +128,16 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 
   | kitap | 3. sınıf ref. | 5. sınıf ref. | 7. sınıf ref. | 9. sınıf ref. |
   |---|---|---|---|---|
-  | fen3 | %10,5* | %6,0 | %3,8 | %3,0 |
-  | fen5 | %14,7 | %6,3* | %4,2 | %2,8 |
-  | sosyalbilgiler5 | %26,5 | %12,4* | %6,0 | %5,6 |
-  | fen7 | %30,7 | %17,0 | %10,4* | %7,5 |
-  | biyoloji9 | %35,6 | %17,5 | %12,1 | %10,1* |
-  | turkce5 | %17,9 | %7,6 | %4,0 | %3,6 |
+  | fen3 | %10,6* | %6,1 | %3,8 | %2,3 |
+  | fen5 | %14,7 | %6,3* | %4,2 | %1,4 |
+  | sosyalbilgiler5 | %26,5 | %12,4* | %6,0 | %4,0 |
+  | fen7 | %30,2 | %17,0 | %10,4* | %5,2 |
+  | biyoloji9 | %42,1 | %24,9 | %15,5 | %10,2* |
+  | turkce5 | %17,9 | %7,6 | %4,0 | %2,4 |
 
-  Kopya metin temizliğinden sonra eğilim eskisinden net: 5. sınıf referansında fen3 %6,0 < fen5 %6,3 <
-  sosyal5 %12,4 < fen7 %17,0 ≈ biyoloji9 %17,5 (öncekinde fen3 %12,3 ile sosyal5 %12,8 aynıydı; fen3'ün
+  (Ölçüm sürümü 4, 11.11.2026. Sürüm 3'te biyoloji9 satırı %35,6 / %17,5 / %12,1 / %10,1* idi: 952 birleşmemiş satır sonu yumuşak
+  tiresi sahte kısa kelime parçaları üretip metni olduğundan kolay gösteriyordu.)   Kopya metin temizliğinden sonra eğilim eskisinden net: 5. sınıf referansında fen3 %6,0 < fen5 %6,3 <
+  sosyal5 %12,4 < fen7 %17,0 < biyoloji9 %24,9 (sürüm 4; sürüm 3'te fen7 ≈ biyoloji9 idi; öncekinde fen3 %12,3 ile sosyal5 %12,8 aynıydı; fen3'ün
   eski çıkarımında birimlerin %26'sı kopya metinli olduğu için yapay zordu). Ders etkisi sürüyor
   (sosyal5 fen5'in iki katı). Çok sayıda kitap ve ders eklenince iyileşir.
 - **Referans ölçüme bağlıdır:** cümle ayırma, birim oluşturma, atlama kuralları ya da formüller
@@ -151,6 +154,16 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   3822→3787, sosyal5 4182→4173, fen5 2164→2163, fen3/fen7 aynı (fen3'te satır içi temizlik: tekrarlı
   birim 35→8). Yazımı farklı kopyalar (sosyal5 s.142 "Anadolu'ya"/"Anadoluya" gibi parçalı kutular)
   kısmen kalır. Tek harfli döndürülmüş başlık parçaları ("s", "a", "ı"…) hâlâ ayrı etiket olarak çıkıyor.
+- **Satır sonu tirelemesi** (`temizleme.temizle`): biyoloji9'da 952, turkce5'te 37 satır sonu yumuşak tire (U+00AD) ile bitiyor
+  (PDF'te görünen tire; kitaplar "kaynakla-
+rından" diye bölünmüş). Eskiden U+00AD silinip satır sonu boşluğa çevrildiği için
+  "sindi rerek", "ola rak", "hüc reli", "ndaki" gibi sahte parçalar çıkıyordu (biyoloji9 yazım bulgusu 1353 → 697). Artık satır
+  sonu U+00AD sonraki satırla boşluksuz birleşir (büyük harf olsa da: yumuşak tire hep görünmezdir); U+2010 ve U+2011 de ASCII tire
+  gibi tireleme sayılır (kitaplarda satır sonunda yok, testle korunuyor); U+2212 (eksi) ve U+2013 (kısa çizgi) tablo hücresi
+  işaretidir, birleştirilmez. U+F0F5 (özel kullanım alanı) eski yazı tipinde ı'dır (fen3 s.5 Öğrenci Andı, biyoloji9 s.3-4 İstiklal
+  Marşı; 81 sözcüğün 78'i dönüşümden sonra geçerli) ve ı'ya çevrilir. Karşılaştırma (eski/yeni `temizle`, aynı bloklar): fen5, fen7,
+  sosyalbilgiler5'te paragraf metni birebir aynı; fen3'te yalnızca s.5; biyoloji9'da 507, turkce5'te 25 paragraf değişti; tüm
+  kitaplarda ASCII tire sayısı değişmedi (gerçek tireler bozulmadı). Çıkarım değiştiği için `OLCUM_SURUMU` 4, referans yeniden üretildi.
 - **Çıkarım şüphesi kuralı** (okunabilirlik): birimin Ateşman puanı 0'ın altındaysa ya da metinde aynı
   10 kelimelik dizi örtüşmeden iki kez geçiyorsa birim ölçüme (dağılım, oran, referans) girmez ve
   okunabilirlik bulgusu yerine `tur="cikarim_sorunu"` ("olası metin çıkarma sorunu", güven 0,3) olarak
@@ -310,22 +323,21 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 - **Varsayılan güven süzgeci 0,5** (`panel.VARSAYILAN_EN_DUSUK_GUVEN`, ≥ dahil). Eşik yerine ayrım yazım analizöründe: kitapta
   **3 ya da daha fazla kez geçen «bilinmeyen kelime»** alan terimi sayılır (güven 0,3, açıklamada «kitapta N kez geçiyor, alan
   terimi olabilir»; `ALAN_TERIMI_EN_AZ_GECIS`); 1-2 kez geçen 0,5'te kalır ve görünür («öğretmlerimiz», «anektod», «hedeflenmektedi»,
-  «sınıflandırılı» varsayılan tabloda görünür; test var). Sayım kelimenin kitaptaki küçük harfli tam biçimidir ("ökaryot" ve
-  "ökaryotik" ayrı sayılır). «Tüm bulguları göster» düşük güvenli ve çıkarım türlerini de açar. İlk deneme (sabit 0,55 eşik) bu
-  gerçek hataları da gizlediği için bırakıldı.
+  «sınıflandırılı» varsayılan tabloda görünür; test var). **Sayım kök ailesi başınadır:** ortak ilk 6 harfi paylaşan bilinmeyen
+  biçimler birleşir ("ökaryot/ökaryotik/ökaryotlar"; `KOK_ONEKI_UZUNLUGU`), yalnızca bilinmeyen (bulgu üretilen) biçimler sayılır —
+  bu yüzden kitapta çok geçen geçerli "öğretmen", gerçek hata "öğretmlerimiz"i gizlemez (test var). Sınır: sayım biçimin kitaptaki
+  tüm geçişlerini sayar (büyük harfli "Van" da "van" olur), bu yüzden bazen geçerli sözcük de 0,3'e düşer. «Tüm bulguları göster»
+  düşük güvenli ve çıkarım türlerini de açar. İlk deneme (sabit 0,55 eşik) gerçek hataları da gizlediği için bırakıldı.
 - **Kaynakça:** tür `baslik`/`etiket` olan «KAYNAKÇA»/«KAYNAKLAR» paragrafından sonraki paragraflar, sonraki başlık/etiket
   ("Görsel ve genel ağ kaynakçası" gibi «kaynakça» geçenler hariç) gelene kadar yazım denetimi dışıdır (fen3 kaynakçası: yabancı
   yazar ve İngilizce başlıklar). Sınır: başlık/etiketten sonra kaynak listesi olmayan «Kaynaklar» etiketleri (biyoloji9 s.20, 52
   etkinlik kutuları) sonraki başlık/etikete kadar denetlenmez.
-- Varsayılan süzgeçle görünen bulgu (11.11.2026, bu kuralla): biyoloji9 752 (toplam 1353), fen3 41 (59), fen5 28 (46), fen7 46 (75),
-  sosyalbilgiler5 53 (82), turkce5 93 (119). Eşik 0,55 iken 60 / 29 / 10 / 20 / 15 / 25 idi (öğretmlerimiz, anektod gizliydi).
-  biyoloji9'da görünen 687 bilinmeyen kelimenin çoğu kitapta 1-2 kez geçen terim ("polimerizasyon", "notatum"...) ve tireleme
-  parçası ("ndaki", "rerek"); terim-gerçek hata ayrımı bu sayıyla yapılamaz. Olası iyileştirme: çekim eklerini kırpan kök
-  sayımı (ökaryot/ökaryotik birleşir).
+- Varsayılan süzgeçle görünen bulgu (11.11.2026; tireleme düzeltmesi ve kök ailesi sayımından sonra): biyoloji9 179 (toplam 697),
+  fen3 39 (57), fen5 27 (46), fen7 39 (75), sosyalbilgiler5 49 (82), turkce5 62 (89). Önceki durum (yalnızca tekrar sayımı): 752 / 41 /
+  28 / 46 / 53 / 93; sabit 0,55 eşiği: 60 / 29 / 10 / 20 / 15 / 25. biyoloji9'da görünen 116 bilinmeyen kelimenin çoğu kitapta 1-2 kez
+  geçen terim ("notatum", "katabolik", "kovalent"...); 197 alan terimi ailesi (477 bulgu) 0,3 ile gizli.
 - Süzgeç araçlarının anahtarı kitaba özeldir (`f_tur_<kitap>`): aynı anahtarla kitap değişince tarayıcı önceki kitabın seçili
   türlerini gösteriyordu.
-- Varsayılan süzgeçle görünen bulgu (11.11.2026, ek sözlük güncellemesinden sonra): biyoloji9 60 (toplam 1357), fen3 29 (176),
-  fen5 10 (46), fen7 20 (76), sosyalbilgiler5 15 (83), turkce5 25 (119).
 - Yazım «bilinmeyen kelime» ek sözlüğü: TDK (sozluk.gov.tr/gts?ara=SÖZCÜK, istemci `User-Agent` ister, ara sıra boş yanıt döner;
   tekrar denenmeli) kontrolüyle `ozmoz`, `karbohidrat`, `yakantop`, `infografik` eklendi. TDK'da olmayan ama gerçek biyoloji terimi
   olan `ökaryot`, `prokaryot`, `substrat`, `katalaz`, `ökaryotik`, `hipertonik`, `histon`, `adezyon`, `dehidrasyon`,
