@@ -42,6 +42,7 @@ BILINMEYEN_GUVEN = 0.5
 # ("öğretmlerimiz", "anektod") gerçek hata olabilir, güveni düşürülmez
 ALAN_TERIMI_EN_AZ_GECIS = 3
 ALAN_TERIMI_GUVEN = 0.3
+KOK_ONEKI_UZUNLUGU = 6  # aynı aileden sayılmak için ortak ilk harf sayısı
 # Bu başlıklardan sonraki paragraflar (kaynak listesi: yabancı yazar ve başlıklar) yazım denetiminden çıkarılır
 _KAYNAKCA_BASLIGI = re.compile(r"^\s*kaynak(?:ça|lar)\s*$")
 KARAKTER_KAYBI_GUVEN = 0.3
@@ -176,9 +177,9 @@ def _denetim_disi_mi(metin: str, m: re.Match) -> bool:
 
 
 def turkce_karakterli_bicimler(kelime: str) -> Iterator[str]:
-    """Kelimedeki s, g, i, c, o, u harflerinin Türkçe karşılıklarıyla değiştirildiği biçimler.
+    """Kelimedeki s, g, i, c, o, u harflerinin Türkçe karşılıklarıyla değiştirildiği bicimler.
 
-    Önce tek harfi değişmiş biçimler, sonra iki, en fazla EN_FAZLA_DEGISIKLIK:
+    Önce tek harfi değişmiş bicimler, sonra iki, en fazla EN_FAZLA_DEGISIKLIK:
         "günes" -> "güneş", ...
     """
     yerler = [i for i, k in enumerate(kelime) if k in TURKCE_KARSILIK]
@@ -223,14 +224,40 @@ class YazimAnalizoru:
             if kaynakcada or p.tur not in INCELENEN_TURLER:
                 continue
             bulgular.extend(self.paragraf_incele(p))
-        for b in bulgular:
-            if b.tur == "bilinmeyen_kelime":
-                gecis = self._kitap_kelimeleri[_kucuk(b.sorunlu_metin)]
-                if gecis >= ALAN_TERIMI_EN_AZ_GECIS:
-                    b.guven = ALAN_TERIMI_GUVEN
-                    b.aciklama = (f"'{b.sorunlu_metin}' Türkçe kök ve eklere ayrılamadı; kitapta {gecis} kez geçiyor, "
-                                  "alan terimi olabilir.")
+        self._alan_terimlerini_isaretle(bulgular)
         return bulgular
+
+    def _alan_terimlerini_isaretle(self, bulgular: list[Bulgu]) -> None:
+        """Kitapta çok geçen bilinmeyen kelimeleri (alan terimi olasılığı) düşük güvenle işaretler.
+
+        Sayım kök ailesi başınadır: yazılışı ortak ilk KOK_ONEKI_UZUNLUGU harfi paylaşan bilinmeyen bicimler aynı aile
+        sayılır ("ökaryot", "ökaryotik", "ökaryotlar"). Yalnızca bilinmeyen (bulgu üretilen) bicimler sayılır; bu yüzden
+        geçerli sözcüklerle ortak önek paylaşan gerçek hata ("öğretmlerimiz" ~ "öğretmen") ailesini büyütmez.
+        Kısa sözcükler (önekten kısa) yalnızca kendi bicimleriyle sayılır."""
+        bicimler: dict[str, str] = {}  # bulgunun kelimesi -> küçük harfli kök biçimi
+        aileler: dict[str, set[str]] = {}
+        for b in bulgular:
+            if b.tur != "bilinmeyen_kelime":
+                continue
+            bicim = _KESME.split(_kucuk(b.sorunlu_metin))[0]
+            anahtar = bicim[:KOK_ONEKI_UZUNLUGU] if len(bicim) >= KOK_ONEKI_UZUNLUGU else bicim
+            bicimler[b.sorunlu_metin] = anahtar
+            aileler.setdefault(anahtar, set()).add(bicim)
+        for b in bulgular:
+            if b.tur != "bilinmeyen_kelime":
+                continue
+            uyeler = aileler[bicimler[b.sorunlu_metin]]
+            gecis = sum(self._kitap_kelimeleri[u] for u in uyeler)
+            if gecis < ALAN_TERIMI_EN_AZ_GECIS:
+                continue
+            b.guven = ALAN_TERIMI_GUVEN
+            if len(uyeler) > 1:
+                ornek = ", ".join(sorted(uyeler, key=lambda u: -self._kitap_kelimeleri[u])[:3])
+                b.aciklama = (f"'{b.sorunlu_metin}' Türkçe kök ve eklere ayrılamadı; kitapta bu kök ailesi ({ornek}...) "
+                              f"{gecis} kez geçiyor, alan terimi olabilir.")
+            else:
+                b.aciklama = (f"'{b.sorunlu_metin}' Türkçe kök ve eklere ayrılamadı; kitapta {gecis} kez geçiyor, "
+                              "alan terimi olabilir.")
 
     def turkce_bicim(self, kelime: str) -> str | None:
         """Kelimenin geçerli olan ilk Türkçe karakterli biçimi (yoksa None). Önbelleğe alınır."""

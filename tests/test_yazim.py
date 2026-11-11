@@ -141,6 +141,26 @@ class BilinmeyenKelimeTest(unittest.TestCase):
         self.assertEqual(bulgular["anektod"].guven, 0.5)  # 1 kez: güven düşmez
         self.assertNotIn("alan terimi", bulgular["anektod"].aciklama)
 
+    def test_kok_ailesi_birlikte_sayilir(self):
+        # "ökaryot" 1, "ökaryotik" 1, "ökaryotlar" 1: tek tek 1-2 kez ama aile 3 kez geçiyor -> alan terimi
+        bulgular = self.bulgular(paragraf("Bu hücre ökaryot yapıdadır."), paragraf("Şu hücre ökaryotik sayılır."),
+                                 paragraf("Bütün ökaryotlar gelişmiştir."))
+        self.assertEqual({b.guven for b in bulgular}, {0.3})
+        self.assertEqual(len(bulgular), 3)
+        self.assertIn("kök ailesi", bulgular[0].aciklama)
+        self.assertIn("3 kez geçiyor, alan terimi olabilir", bulgular[0].aciklama)
+
+    def test_kisa_aile_iki_kez_gecince_guven_korunur(self):
+        bulgular = self.bulgular(paragraf("Bu hücre ökaryot yapıdadır."), paragraf("Şu hücre ökaryotik sayılır."))
+        self.assertEqual([b.guven for b in bulgular], [0.5, 0.5])
+
+    def test_gecerli_sozcuklerle_ortak_onek_gercek_hatayi_gizlemez(self):
+        # "öğretmen" kitapta çok geçer ama bilinmeyen değildir; "öğretmlerimiz" gerçek hatası 0,5'te kalır
+        metin = ("Öğretmen ders anlattı. Bizim öğretmenimiz geldi. Diğer öğretmenler de gitti. "
+                 "Hepsi öğretmenlik yapar. Bizim öğretmlerimiz yoruldu.")
+        bulgular = self.bulgular(paragraf(metin))
+        self.assertEqual([(b.sorunlu_metin, b.guven) for b in bulgular], [("öğretmlerimiz", 0.5)])
+
     def test_iki_kez_gecen_bilinmeyen_kelime_guveni_korur(self):
         bulgular = self.bulgular(paragraf("Bizim öğretmlerimiz geldi."), paragraf("Diğer öğretmlerimiz de gitti."))
         self.assertEqual([b.guven for b in bulgular], [0.5, 0.5])
