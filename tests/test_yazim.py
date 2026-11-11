@@ -129,6 +129,36 @@ class BilinmeyenKelimeTest(unittest.TestCase):
         self.assertEqual(self.bilinmeyenler("Diğer arkadaşlarımız ve öğretmlerimiz de katıldılar."),
                          ["öğretmlerimiz"])
 
+    def bulgular(self, *paragraflar):
+        return [b for b in self.analizor.analiz_et(list(paragraflar)) if b.tur == "bilinmeyen_kelime"]
+
+    def test_kitapta_cok_gecen_bilinmeyen_kelime_alan_terimi_sayilir(self):
+        # biyoloji9: "ökaryot" 28, "prokaryot" 17 kez geçer; 1-2 kez geçen ("anektod") gerçek hata olabilir
+        metin = "Bu hücre ökaryot yapıdadır. Şu hücre de ökaryot yapıdadır. Bir başka hücre ökaryot sayılır. Biz anektod yazdık."
+        bulgular = {b.sorunlu_metin.lower(): b for b in self.bulgular(paragraf(metin))}
+        self.assertEqual(bulgular["ökaryot"].guven, 0.3)
+        self.assertIn("kitapta 3 kez geçiyor, alan terimi olabilir", bulgular["ökaryot"].aciklama)
+        self.assertEqual(bulgular["anektod"].guven, 0.5)  # 1 kez: güven düşmez
+        self.assertNotIn("alan terimi", bulgular["anektod"].aciklama)
+
+    def test_iki_kez_gecen_bilinmeyen_kelime_guveni_korur(self):
+        bulgular = self.bulgular(paragraf("Bizim öğretmlerimiz geldi."), paragraf("Diğer öğretmlerimiz de gitti."))
+        self.assertEqual([b.guven for b in bulgular], [0.5, 0.5])
+
+    def test_kaynakca_basligindan_sonrasi_denetlenmez(self):
+        kaynak = paragraf("Aygören, F. Science teaching inquiry learning (2019). Okdum.")
+        for baslik in ("KAYNAKÇA", "Kaynakça", "KAYNAKLAR"):
+            for tur in ("baslik", "etiket"):
+                with self.subTest(baslik=baslik, tur=tur):
+                    self.assertEqual(self.bulgular(paragraf(baslik, tur), kaynak), [])
+        self.assertTrue(self.bulgular(kaynak))  # başlıksız aynı metin denetlenir
+
+    def test_kaynakca_yeni_basliga_kadar_surer(self):
+        sonuc = self.bulgular(paragraf("KAYNAKÇA", "baslik"), paragraf("Science teaching inquiry."),
+                              paragraf("Görsel ve Genel Ağ Kaynakçası", "etiket"), paragraf("Learning research okdum."),
+                              paragraf("CEVAP ANAHTARI", "baslik"), paragraf("Kitapları dikkatle okdum."))
+        self.assertEqual([b.sorunlu_metin for b in sonuc], ["okdum"])
+
     def test_parantezle_okunusu_verilen_kelime_denetlenmez(self):
         metin = ("Buz satrancı da denilen curling (körling) bir spordur. Pirinçten yapılan plov (pılov) "
                  "ikram edilir. Büyük bir karum (pazar yeri) kurmuşlardır.")

@@ -38,6 +38,12 @@ INCELENEN_TURLER = {"govde", "soru", "liste"}
 
 KESIN_GUVEN = 0.9
 BILINMEYEN_GUVEN = 0.5
+# Kitapta çok geçen bilinmeyen kelime yazım hatası değil alan terimi olasıdır ("ökaryot" 28 kez); 1-2 kez geçen
+# ("öğretmlerimiz", "anektod") gerçek hata olabilir, güveni düşürülmez
+ALAN_TERIMI_EN_AZ_GECIS = 3
+ALAN_TERIMI_GUVEN = 0.3
+# Bu başlıklardan sonraki paragraflar (kaynak listesi: yabancı yazar ve başlıklar) yazım denetiminden çıkarılır
+_KAYNAKCA_BASLIGI = re.compile(r"^\s*kaynak(?:ça|lar)\s*$")
 KARAKTER_KAYBI_GUVEN = 0.3
 KARAKTER_KAYBI_BAGLAM_GUVEN = 0.2
 
@@ -204,9 +210,26 @@ class YazimAnalizoru:
         # kaybına uğramış kelimeleri ayırt etmek için kullanılır.
         self._kitap_kelimeleri = Counter(k for p in paragraflar for k in _kelimeler(p.metin))
         bulgular: list[Bulgu] = []
+        kaynakcada = False
         for p in paragraflar:
-            if p.tur in INCELENEN_TURLER:
-                bulgular.extend(self.paragraf_incele(p))
+            if p.tur in ("baslik", "etiket"):
+                # "KAYNAKÇA"/"KAYNAKLAR" başlığı kaynak listesini açar; sonraki başlık ya da etiket (ama "Görsel ve genel
+                # ağ kaynakçası" gibi kaynakçaya ait olanlar değil) kapatır
+                kucuk = _kucuk(p.metin)
+                if _KAYNAKCA_BASLIGI.match(kucuk):
+                    kaynakcada = True
+                elif "kaynakça" not in kucuk:
+                    kaynakcada = False
+            if kaynakcada or p.tur not in INCELENEN_TURLER:
+                continue
+            bulgular.extend(self.paragraf_incele(p))
+        for b in bulgular:
+            if b.tur == "bilinmeyen_kelime":
+                gecis = self._kitap_kelimeleri[_kucuk(b.sorunlu_metin)]
+                if gecis >= ALAN_TERIMI_EN_AZ_GECIS:
+                    b.guven = ALAN_TERIMI_GUVEN
+                    b.aciklama = (f"'{b.sorunlu_metin}' Türkçe kök ve eklere ayrılamadı; kitapta {gecis} kez geçiyor, "
+                                  "alan terimi olabilir.")
         return bulgular
 
     def turkce_bicim(self, kelime: str) -> str | None:
