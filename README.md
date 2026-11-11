@@ -32,6 +32,7 @@ PDF ─► Metin çıkarma ─► Temizleme ─► Analizörler ─► Bulgular 
 | `dkds/analiz/okunabilirlik.py` | Okunabilirlik analizörü: cümle ayırma, Ateşman ve Bezirci-Yılmaz formülleri, sınıf referansıyla karşılaştırma |
 | `dkds/analiz/tutarlilik.py` | Tutarlılık analizörü: tarih ve birimli sayısal olguları varlık + nicelik türü + bağlamla eşleştirip farklı sayfalardaki çelişkileri aday çelişki, emin olunamayanları belirsiz olarak raporlar |
 | `dkds/analiz/sayilar.py` | Yazıyla sayılar ("yirmi dört"), sayı + birim ifadeleri (saat, km, °C, kg, N, %), ortak tabana çevirme |
+| `dkds/is_akisi.py`, `dkds/panel.py`, `dkds/one_cikan.py`, `app.py` | Tam analiz iş akışı (CLI ve panel ortak), panelin Streamlit'ten bağımsız işlevleri (süzme, sayfa işaretleme, CSV/Excel), sunum için öne çıkan bulgular, Streamlit demo paneli |
 | `dkds/analiz/referans.py`, `referans.json` | Sınıf başına okunabilirlik referansı: ortanca, %10 ve %90 dilimleri (3-9. sınıf kitaplarından) |
 
 `duzen.py`, `temizleme.py` ve `siniflandirma.py` hiçbir PDF kütüphanesine bağlı değildir; böylece bağımsız olarak test edilebilirler.
@@ -102,6 +103,38 @@ Bulgular `cikti\kitap_bulgular.json` dosyasına yazılır; ekranda kriter, bulgu
 türüne göre özet gösterilir. Her bulgu `Bulgu` formatındadır (sayfa, paragraf, kriter,
 sorunlu_metin, aciklama, guven, oneri, konum, tur). `karakter_kaybi` türündeki bulgular yazım
 hatası değil, olası metin çıkarma sorunudur (ör. dekoratif yazı tipi ş'yi s olarak kodlar).
+
+## Demo nasıl başlatılır
+
+Demo paneli Streamlit ile yazıldı (`app.py`, arayüz Türkçe). Kurulum bir kez yapılır (yukarıdaki "Kurulum"):
+
+```powershell
+.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+1. **Önceden hesaplanmış sonuçları üret** (altı kitap için yaklaşık 2-3 dakika; panel bu dosyaları anında açar).
+   PDF'ler `veri\` klasöründe olmalı; sınıf dosya adından alınır (`fen5.pdf` → 5):
+
+   ```powershell
+   python -m dkds on_hesapla
+   ```
+
+   Sonuçlar `cikti\<kitap>_bulgular.json` dosyalarına yazılır (`cikti\` git'e eklenmez, her makinede bir kez üretilir).
+2. **Paneli aç:** masaüstünden `DKDS_Baslat.bat` dosyasına çift tıkla (sanal ortamı etkinleştirir, `streamlit run app.py`
+   çalıştırır, tarayıcı `http://localhost:8501` adresinde açılır) ya da:
+
+   ```powershell
+   streamlit run app.py
+   ```
+
+Panelde: soldan **hazır analiz** seçilir (anında açılır) ya da **yeni PDF yüklenip** sınıf seçilerek «Analiz et»e basılır
+(ilerleme çubuğu gösterilir; büyük kitapta 20-60 saniye). **Özet** sekmesi kriter başına bulgu sayısını, Ateşman ve
+Bezirci-Yılmaz puanını ve sınıf referansıyla karşılaştırmayı; **Bulgular** sekmesi süzülebilir bulgu tablosunu (kriter,
+tür, en düşük güven; «olası metin çıkarma sorunu» türleri varsayılan olarak gizli) gösterir. Tablodan satır seçilince
+sayfa görüntüsünde bulgu kırmızı kutuyla işaretlenir; tutarlılık bulgularında çelişen diğer sayfa yan yana açılır.
+**Öne çıkan bulgular** sekmesi sunum için doğrulanmış örnekleri tek tıkla açar. Tablo CSV ya da Excel olarak indirilir.
+Panel testleri: `python -m unittest tests.test_arayuz tests.test_panel` (Streamlit `AppTest`).
 
 ## Testler
 
