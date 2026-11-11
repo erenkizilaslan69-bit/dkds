@@ -489,7 +489,8 @@ class AlistirmaTest(unittest.TestCase):
         self.assertIn(50, {o.sayfa for o in sonuc.olgular})
 
     def test_diger_yonerge_turleri(self):
-        for yonerge in ("Boşlukları doldurunuz.", "Doğru seçeneği işaretleyiniz.", "Soruları cevaplayınız."):
+        for yonerge in ("Boşlukları doldurunuz.", "İfade doğru ya da yanlış ise işaretleyiniz.",
+                        "Doğru ise D yanlış ise Y yazınız."):
             sonuc = self.incele(*self.sayfa50(yonerge, "Dünya, dolanma hareketini 24 saatte tamamlar."))
             self.assertEqual(sonuc.olgular, [], yonerge)
 
@@ -508,6 +509,29 @@ class AlistirmaTest(unittest.TestCase):
         uzun = "Bu cümle doğru ise önemlidir. " + "Uzun anlatım sözcüğü " * 20
         sonuc = self.incele(paragraf(uzun, 60), paragraf("Dünya, dolanma hareketini 24 saatte tamamlar.", 60, 2))
         self.assertEqual([o.paragraf for o in sonuc.olgular], [2])
+
+    def test_uzun_okuma_metni_blogu_bitirir(self):
+        # fen7 s.140: yönergeden sonra 30 kelimeden uzun gövde paragrafı (haber/anlatım) alıştırma maddesi değildir
+        uzun = ("Mehmet, bir yıldır böbrek yetmezliği ile mücadele ediyordu. Haftada üç gün gittiği diyaliz "
+                "merkezindeki makineler yaşamının bir parçası olmuştu. Her seans dört saat sürüyordu ve sürekli yorgundu. Doktorlar nakil için aileyi bilgilendirdi.")
+        sonuc = self.incele(*self.sayfa50("Doğru ya da yanlış olduğuna karar veriniz."), paragraf(uzun, 50, 20))
+        self.assertEqual({o.paragraf for o in sonuc.olgular}, {20})  # "üç gün", "dört saat"
+
+    def test_zayif_yonerge_yalniz_hemen_alti_kapsar(self):
+        # fen7 s.120: "... cevaplayınız" etkinlik yönergesidir; sonraki anlatım ve madde imli liste olgudur
+        yonerge = Paragraf(sayfa=120, paragraf=6, metin="Sunum sonunda değerlendirme sorusunu cevaplayınız.",
+                           konum=(0, 0, 1, 1))
+        anlatim = Paragraf(sayfa=120, paragraf=11, metin="Doğru nefes için dikkat edin: 3-4 saniye nefesinizi tutun.",
+                           konum=(0, 1, 1, 2))
+        self.assertEqual(TutarlilikAnalizoru.alistirma_paragraflari([yonerge, anlatim]), {(120, 6)})
+
+    def test_zayif_yonerge_madde_ve_bosluklu_maddeleri_kapsar(self):
+        # biyoloji9 s.157: "Boş bırakılan bölümleri işaretleyiniz" + "(……) ... 10 000 yıl önce" maddeleri
+        yonerge = Paragraf(sayfa=157, paragraf=10, metin="20. Hangisi doğrudur? Boş bırakılan bölümleri işaretleyiniz.",
+                           konum=(0, 0, 1, 1), tur="liste")
+        madde = Paragraf(sayfa=157, paragraf=11, metin="(……) Tahıl tarımı yaklaşık 10 000 yıl önce başlamıştır.",
+                         konum=(0, 1, 1, 2))
+        self.assertEqual(TutarlilikAnalizoru.alistirma_paragraflari([yonerge, madde]), {(157, 10), (157, 11)})
 
     def test_soru_turundeki_paragraf_olgu_sayilmaz(self):
         soru = Paragraf(sayfa=70, paragraf=1, metin="Dünya, dolanma hareketini kaç saatte tamamlar, 24 saatte mi?",

@@ -110,11 +110,15 @@ _ETIKET_SONU = re.compile(r"\s+:")  # "Süre : 40 dk" gibi form etiketi
 _KUNYE_ETIKETI = re.compile(r"\b(?:Adı|Amaç|Süre|Konu|Kazanım|Araç|Gereç|Malzeme)\b")
 _SURE_ETIKETI = re.compile(r"\bSüre\s*:?\s*$")
 # Değerlendirme/alıştırma yönergesi: altındaki maddeler (bilerek yanlış yazılmış olabilir) olgu sayılmaz
-_YONERGE = re.compile(
+_YONERGE = re.compile(  # güçlü: altındaki maddeler doğru/yanlış ya da boşluk doldurma maddesidir
     r"doğru\s+ise|yanlış\s+ise|doğru\s+(?:ya\s+da|veya)\s+yanlış|[“”‘’]D[“”‘’].{0,20}[“”‘’]Y[“”‘’]|\bD\s*/\s*Y\b"
-    r"|boşlukları\s+doldur|boşluğa|işaretleyiniz|işaretleyin|cevaplayınız|cevaplayın|eşleştiriniz",
+    r"|boşlukları\s+doldur|boşluğa",
     re.IGNORECASE)
+_YONERGE_ZAYIF = re.compile(  # zayıf: etkinlik yönergesi de olabilir; yalnızca hemen altındaki madde/soru kapsanır
+    r"işaretleyiniz|işaretleyin|cevaplayınız|cevaplayın|eşleştiriniz", re.IGNORECASE)
+_MADDE_BASI = re.compile(r"^\(\s*[….\s]*\)")  # "(……) Türkiye'de ..." doğru/yanlış maddesi
 YONERGE_EN_COK_KELIME = 40  # daha uzun paragraf yönerge değil anlatımdır
+BLOK_BITIREN_KELIME = 30  # alıştırma maddeleri kısadır; bundan uzun gövde paragrafı anlatım/okuma metnidir
 KUNYE_EN_AZ_ETIKET = 2  # etkinlik künyesi ("Adı ... Amaç ... Süre 80 dk"): süre/amaç karşılaştırılacak bir olgu değil
 # Öbeğin son sözcüğü bunlardan biriyse ("Karain Mağarası") son sözcükle eşleşme yapılmaz: genel ad
 # olduğundan farklı varlıkları birleştirirdi
@@ -564,17 +568,31 @@ class TutarlilikAnalizoru:
         """Yönergesi ("doğru ise D, yanlış ise Y", "boşlukları doldurunuz"...) olan alıştırma bloklarının
         (yönerge dahil) ve soru türündeki paragrafların (sayfa, paragraf) kimlikleri.
 
-        Blok yönerge paragrafından sonraki ilk gerçek başlığa ya da sayfa sonuna kadar sürer ("D Y" gibi
-        sütun etiketleri başlık sayılmaz); maddeler bilerek yanlış olabileceğinden kitap bilgisi değildir."""
+        Güçlü yönerge ("doğru ise D, yanlış ise Y", "boşlukları doldurunuz") bloğu sonraki ilk gerçek başlığa,
+        ilk uzun gövde paragrafına (BLOK_BITIREN_KELIME'den uzun; düz anlatım ya da okuma metni) ya da sayfa
+        sonuna kadar sürer ("D Y" gibi sütun etiketleri başlık sayılmaz). Zayıf yönerge ("cevaplayınız",
+        "işaretleyiniz": etkinlik yönergesi de olabilir) yalnızca kendisini ve hemen altındaki soru/liste/
+        "(……)" maddelerini kapsar. Maddeler bilerek yanlış olabileceğinden kitap bilgisi değildir."""
         dis: set[tuple[int, int]] = set()
         blok_sayfasi = None
+        zayif_sayfasi = None
         for p in paragraflar:
+            kelime = len(p.metin.split())
+            uzun = kelime > BLOK_BITIREN_KELIME
             if blok_sayfasi is not None and (p.sayfa != blok_sayfasi or (
-                    p.tur == "baslik" and len(re.findall(r"\w{2,}", p.metin)) >= 1)):
+                    p.tur == "baslik" and re.search(r"\w{2,}", p.metin)) or (p.tur == "govde" and uzun)):
                 blok_sayfasi = None
-            if (len(p.metin.split()) <= YONERGE_EN_COK_KELIME and p.tur != "baslik" and _YONERGE.search(p.metin)):
+            madde = p.tur in ("soru", "liste") or bool(_MADDE_BASI.match(p.metin))
+            if zayif_sayfasi is not None and (p.sayfa != zayif_sayfasi or not madde):
+                zayif_sayfasi = None
+            kisa = kelime <= YONERGE_EN_COK_KELIME and p.tur != "baslik"
+            if kisa and _YONERGE.search(p.metin):
                 blok_sayfasi = p.sayfa
-            if blok_sayfasi is not None or p.tur == "soru":
+                zayif_sayfasi = None
+            elif kisa and _YONERGE_ZAYIF.search(p.metin):
+                zayif_sayfasi = p.sayfa
+                dis.add((p.sayfa, p.paragraf))
+            if blok_sayfasi is not None or zayif_sayfasi is not None or p.tur == "soru":
                 dis.add((p.sayfa, p.paragraf))
         return dis
 
