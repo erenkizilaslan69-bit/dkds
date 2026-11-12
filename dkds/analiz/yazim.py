@@ -31,6 +31,7 @@ from collections.abc import Iterable, Iterator
 from itertools import combinations
 
 from ..models import Bulgu, Paragraf
+from .ulusal_metin import ulusal_metinleri_ayikla
 from .morfoloji import Morfoloji
 
 KRITER = "yazim"
@@ -206,7 +207,8 @@ class YazimAnalizoru:
         self._kitap_kelimeleri: Counter[str] = Counter()
 
     def analiz_et(self, paragraflar: Iterable[Paragraf]) -> list[Bulgu]:
-        paragraflar = list(paragraflar)
+        # İstiklal Marşı, Gençliğe Hitabe, Öğrenci Andı sayfaları denetlenmez (arkaik sözcükler: serhaddim, vecd, hürriyyet)
+        paragraflar = ulusal_metinleri_ayikla(paragraflar)
         # Kitaptaki kelime sıklıkları: "yasamın" gibi geçerli görünen ama karakter
         # kaybına uğramış kelimeleri ayırt etmek için kullanılır.
         self._kitap_kelimeleri = Counter(k for p in paragraflar for k in _kelimeler(p.metin))

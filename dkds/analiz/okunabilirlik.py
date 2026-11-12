@@ -29,6 +29,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from .ulusal_metin import ulusal_metinleri_ayikla
 from ..models import Bulgu, Konum, Paragraf
 from .referans import Referans, SinifReferansi, referans_yukle, yuzdelik
 
@@ -242,7 +243,7 @@ INCELENEN_TURLER = {"govde"}
 # Ölçümü değiştiren her düzenlemede (cümle ayırma, hece/kelime sayımı, birim oluşturma,
 # atlama kuralları, formüller) artırılır. referans.json bu sürümle üretilir; sürüm
 # uyuşmazsa referans yeniden üretilmelidir: python -m dkds referans (bkz. README).
-OLCUM_SURUMU = 4  # 2: form/künye atlanıyor; 3: kopya metin katmanı temizleniyor, çıkarım şüphesi birimleri ölçüm dışı; 4: satır sonu yumuşak tire birleştiriliyor
+OLCUM_SURUMU = 5  # 5: ulusal metin sayfaları ölçüm dışı; 2: form/künye atlanıyor; 3: kopya metin katmanı temizleniyor, çıkarım şüphesi birimleri ölçüm dışı; 4: satır sonu yumuşak tire birleştiriliyor
 
 # Bundan az kelimeli gövde paragrafları aynı sayfadaki komşu gövde paragraflarıyla
 # birleştirilerek değerlendirilir; çok kısa metinde formüller güvenilir sonuç vermez.
@@ -402,9 +403,10 @@ def birimleri_olustur(paragraflar: Iterable[Paragraf]) -> tuple[list[Birim], Cou
     - EN_AZ_KELIME'den kısa paragraflar aynı sayfadaki sonraki gövde paragraflarıyla
       birleştirilir; sayfanın sonunda kalan kısa parça bir öncekine eklenir.
     - Sayfada toplam EN_AZ_KELIME kelimelik gövde metni yoksa sayfa atlanır.
+    - Ulusal metin sayfaları (İstiklal Marşı, Gençliğe Hitabe, Öğrenci Andı; bkz. ulusal_metin.py) hiç alınmaz.
     """
     sayfalar: dict[int, list[Paragraf]] = defaultdict(list)
-    for p in paragraflar:
+    for p in ulusal_metinleri_ayikla(paragraflar):  # İstiklal Marşı, Gençliğe Hitabe, Öğrenci Andı ölçüm dışı
         if p.tur in INCELENEN_TURLER:
             sayfalar[p.sayfa].append(p)
 
