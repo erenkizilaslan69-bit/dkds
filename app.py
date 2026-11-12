@@ -20,6 +20,8 @@ KOK = Path(__file__).resolve().parent
 CIKTI = Path(os.environ.get("DKDS_CIKTI", KOK / "cikti"))
 VERI = Path(os.environ.get("DKDS_VERI", KOK / "veri"))
 
+VARSAYILAN_KITAP = "fen5"  # panel açılışında seçili hazır kitap (yoksa listenin ilki)
+
 st.set_page_config(page_title="DKDS – Ders Kitabı Denetim Sistemi", page_icon="📘", layout="wide")
 
 
@@ -271,7 +273,8 @@ def kitabi_sec() -> tuple[dict | None, str]:
             return None, ""
         adlar = list(hazir)
         etiketler = {ad: panel.kitap_etiketi(ad, _kayit(str(yol), yol.stat().st_mtime)) for ad, yol in hazir.items()}
-        ad = st.sidebar.selectbox("Kitap", adlar, format_func=etiketler.get, key="hazir_kitap")
+        varsayilan = adlar.index(VARSAYILAN_KITAP) if VARSAYILAN_KITAP in adlar else 0  # sunumda fen5 ile açılır
+        ad = st.sidebar.selectbox("Kitap", adlar, index=varsayilan, format_func=etiketler.get, key="hazir_kitap")
         return _kayit(str(hazir[ad]), hazir[ad].stat().st_mtime), ad
 
     dosya = st.sidebar.file_uploader("PDF dosyası", type="pdf", key="pdf_yukle")

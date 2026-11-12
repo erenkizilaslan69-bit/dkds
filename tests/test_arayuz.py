@@ -53,6 +53,9 @@ def ornek_kitap(klasor: Path) -> None:
     ikinci = {**kayit, "kaynak": "turkce5.pdf", "sinif": 5, "bulgular": [
         {**kayit["bulgular"][0], "tur": "tekrar", "guven": 0.9, "sayfa": 2}]}
     (klasor / "cikti" / "turkce5_bulgular.json").write_text(json.dumps(ikinci, ensure_ascii=False), encoding="utf-8")
+    # alfabetik olarak fen5'ten ÖNCE gelen kitap: varsayılan seçim listenin ilki değil fen5 olmalı
+    onceki = {**ikinci, "kaynak": "biyoloji9.pdf", "sinif": 9}
+    (klasor / "cikti" / "biyoloji9_bulgular.json").write_text(json.dumps(onceki, ensure_ascii=False), encoding="utf-8")
 
 
 @unittest.skipIf(fitz is None or AppTest is None, "PyMuPDF ya da streamlit kurulu değil")
@@ -108,7 +111,7 @@ class PanelAkisiTest(unittest.TestCase):
 
     def test_kitap_degisince_suzgec_secimleri_sifirlanir(self):
         at = self.ac()
-        self.assertEqual(at.sidebar.selectbox(key="hazir_kitap").options, ["fen5 (5. sınıf)", "turkce5 (5. sınıf)"])
+        self.assertEqual(at.sidebar.selectbox(key="hazir_kitap").options, ["biyoloji9 (9. sınıf)", "fen5 (5. sınıf)", "turkce5 (5. sınıf)"])
         fen5_turleri = set(at.multiselect(key="f_tur_fen5").options)
         at.sidebar.selectbox(key="hazir_kitap").select("turkce5").run()
         self.assertEqual(len(at.exception), 0, [e.value for e in at.exception])
@@ -117,6 +120,19 @@ class PanelAkisiTest(unittest.TestCase):
         self.assertEqual(yeni.value, ["tekrar"])  # yeni kitabın türleri seçili, öncekinin seçimi kalmadı
         self.assertNotEqual(fen5_turleri, set(yeni.options))
         self.assertIn("**1** bulgu gösteriliyor", " ".join(m.value for m in at.markdown))
+
+    def test_varsayilan_kitap_fen5(self):
+        at = self.ac()
+        self.assertEqual(at.sidebar.selectbox(key="hazir_kitap").value, "fen5")  # biyoloji9 alfabetik olarak önce gelir
+        self.assertIn("fen5.pdf", " ".join(h.value for h in at.header))
+
+    def test_varsayilan_kitap_yoksa_listenin_ilki(self):
+        (self.kok / "cikti" / "fen5_bulgular.json").rename(self.kok / "cikti" / "fen5_gecici.json")
+        try:
+            at = self.ac()
+            self.assertEqual(at.sidebar.selectbox(key="hazir_kitap").value, "biyoloji9")
+        finally:
+            (self.kok / "cikti" / "fen5_gecici.json").rename(self.kok / "cikti" / "fen5_bulgular.json")
 
     def test_bulgu_tablosu_ve_suzgecler(self):
         at = self.ac()
