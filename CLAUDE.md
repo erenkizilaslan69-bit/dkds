@@ -103,18 +103,18 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 - **Referans kitapları** (`python -m dkds referans -k SINIF PDF ...` ile üretilir): fen3 (160 sayfa,
   serinin 1. kitabı), fen5 (152) ve sosyalbilgiler5 (154) → 5. sınıf (392 birim), fen7 (153 sayfa,
   1. kitap; sözlük ve kaynakçayla bittiği için eksik değil), biyoloji9 (184). Ara sınıflar (4, 6, 8)
-  komşulardan doğrusal ara değerdir. Birim bazında Ateşman (düşük = zor), ölçüm sürümü 4 (sürüm 3'e göre yalnızca
-  satır sonu yumuşak tire birleştirmesi değişti: fen3 ve biyoloji9 satırları; 5. ve 7. sınıf aynı):
+  komşulardan doğrusal ara değerdir. Birim bazında Ateşman (düşük = zor), ölçüm sürümü 5 (sürüm 3'e göre: satır sonu
+  yumuşak tire birleştirmesi (4) ve ulusal metin sayfalarının ölçüm dışı bırakılması (5)):
 
   | sınıf | birim | %10 | ortanca | %90 | B-Y ortanca |
   |---|---|---|---|---|---|
   | 3 | 132 | 38,3 | 56,0 | 83,8 | 11,2 |
-  | 4 | ara | 35,2 | 52,7 | 75,4 | 13,0 |
-  | 5 | 392 | 32,1 | 49,5 | 66,9 | 14,7 |
-  | 6 | ara | 29,9 | 47,4 | 64,8 | 15,3 |
-  | 7 | 212 | 27,6 | 45,4 | 62,8 | 15,9 |
-  | 8 | ara | 25,8 | 43,5 | 61,2 | 17,3 |
-  | 9 | 342 | 24,1 | 41,6 | 59,7 | 18,8 |
+  | 4 | ara | 35,2 | 52,6 | 75,1 | 13,0 |
+  | 5 | 386 | 32,1 | 49,3 | 66,4 | 14,7 |
+  | 6 | ara | 29,8 | 47,3 | 64,3 | 15,3 |
+  | 7 | 209 | 27,5 | 45,2 | 62,3 | 15,9 |
+  | 8 | ara | 25,8 | 43,4 | 60,9 | 17,4 |
+  | 9 | 339 | 24,0 | 41,5 | 59,4 | 18,8 |
 
 - **Sınıf eğilimi gerçek ama zayıf ve eşit adımlı değil** (ölçüm sürümü 3 değerleri; sürüm 4'te biyoloji9 ortancası -2,7 düştü
   ve bu aralıklar yeniden hesaplanmadı, fen7→biyoloji9 farkı büyümüş olmalı; bootstrap %95 aralığı):
@@ -128,16 +128,16 @@ Tutarlı örnek (yanlış alarm üretmemeli):
 
   | kitap | 3. sınıf ref. | 5. sınıf ref. | 7. sınıf ref. | 9. sınıf ref. |
   |---|---|---|---|---|
-  | fen3 | %10,6* | %6,1 | %3,8 | %2,3 |
-  | fen5 | %14,7 | %6,3* | %4,2 | %1,4 |
-  | sosyalbilgiler5 | %26,5 | %12,4* | %6,0 | %4,0 |
-  | fen7 | %30,2 | %17,0 | %10,4* | %5,2 |
-  | biyoloji9 | %42,1 | %24,9 | %15,5 | %10,2* |
-  | turkce5 | %17,9 | %7,6 | %4,0 | %2,4 |
+  | fen3 | %10,6* | %5,3 | %3,8 | %2,3 |
+  | fen5 | %15,0 | %6,4* | %4,3 | %1,4 |
+  | sosyalbilgiler5 | %26,8 | %12,2* | %6,1 | %4,1 |
+  | fen7 | %30,6 | %17,2 | %10,0* | %5,3 |
+  | biyoloji9 | %42,5 | %25,1 | %15,6 | %10,0* |
+  | turkce5 | %18,1 | %7,7 | %4,0 | %2,5 |
 
-  (Ölçüm sürümü 4, 11.11.2026. Sürüm 3'te biyoloji9 satırı %35,6 / %17,5 / %12,1 / %10,1* idi: 952 birleşmemiş satır sonu yumuşak
+  (Ölçüm sürümü 5, 12.11.2026. Sürüm 3'te biyoloji9 satırı %35,6 / %17,5 / %12,1 / %10,1* idi: 952 birleşmemiş satır sonu yumuşak
   tiresi sahte kısa kelime parçaları üretip metni olduğundan kolay gösteriyordu.)   Kopya metin temizliğinden sonra eğilim eskisinden net: 5. sınıf referansında fen3 %6,0 < fen5 %6,3 <
-  sosyal5 %12,4 < fen7 %17,0 < biyoloji9 %24,9 (sürüm 4; sürüm 3'te fen7 ≈ biyoloji9 idi; öncekinde fen3 %12,3 ile sosyal5 %12,8 aynıydı; fen3'ün
+  sosyal5 %12,4 < fen7 %17,0 < biyoloji9 %25,1 (sürüm 5; sürüm 3'te fen7 ≈ biyoloji9 idi; öncekinde fen3 %12,3 ile sosyal5 %12,8 aynıydı; fen3'ün
   eski çıkarımında birimlerin %26'sı kopya metinli olduğu için yapay zordu). Ders etkisi sürüyor
   (sosyal5 fen5'in iki katı). Çok sayıda kitap ve ders eklenince iyileşir.
 - **Referans ölçüme bağlıdır:** cümle ayırma, birim oluşturma, atlama kuralları ya da formüller
@@ -154,6 +154,13 @@ Tutarlı örnek (yanlış alarm üretmemeli):
   3822→3787, sosyal5 4182→4173, fen5 2164→2163, fen3/fen7 aynı (fen3'te satır içi temizlik: tekrarlı
   birim 35→8). Yazımı farklı kopyalar (sosyal5 s.142 "Anadolu'ya"/"Anadoluya" gibi parçalı kutular)
   kısmen kalır. Tek harfli döndürülmüş başlık parçaları ("s", "a", "ı"…) hâlâ ayrı etiket olarak çıkıyor.
+- **Ulusal metin sayfaları** (`dkds/analiz/ulusal_metin.py`): İstiklal Marşı, Gençliğe Hitabe, Öğrenci Andı yazım ve okunabilirlik
+  analizi dışıdır (arkaik «serhaddim», «vecd», «hürriyyet» yazım hatası olarak en üstte görünüyordu). Sayfa; başlık/etiket
+  paragrafı «İSTİKLÂL MARŞI», «GENÇLİĞE HİTABE», «ÖĞRENCİ ANDI» ya da «ANDIMIZ» (fen3 s.5) ise, ya da ilk paragrafı marşın ilk
+  dizesiyle ("Korkma, sönmez bu şafaklarda…") başlıyorsa ulusal metin sayfasıdır. Marşın başlığı görsel olduğundan metin
+  katmanında yok; bu yüzden sayfa ilk dizeden tanınır (fen5 s.5-6, fen7 s.4-5, biyoloji9 ve sosyal5 s.3-4, turkce5 s.4-5, fen3 s.5).
+  sosyal5 s.82'deki marş alıntısı (tırnaklı, ilk paragraf değil) dışarıda kalmaz. Tutarlılık analizi etkilenmez. Beş kitapta 3'er
+  (fen3'te 0) ölçüm birimi çıktığı için `OLCUM_SURUMU` 5, referans yeniden üretildi (5. sınıf 392 → 386 birim).
 - **Satır sonu tirelemesi** (`temizleme.temizle`): biyoloji9'da 952, turkce5'te 37 satır sonu yumuşak tire (U+00AD) ile bitiyor
   (PDF'te görünen tire; kitaplar "kaynakla-
 rından" diye bölünmüş). Eskiden U+00AD silinip satır sonu boşluğa çevrildiği için
@@ -179,7 +186,7 @@ rından" diye bölünmüş). Eskiden U+00AD silinip satır sonu boşluğa çevri
   hücresi), sözlükçe paragrafları, form/etkinlik künyeleri ("Adı : … Amacı : … Süre :"; ≥3 alan),
   sayfada 40 kelimelik gövde metni olmayan paragraflar, çıkarım şüphesi birimleri. Sayıdaki nokta
   ("4.000") cümle sonu sayılmaz. Şık işaretleri ("a.", "A)") cümleye katılmaz.
-- fen5'te %6 (9/143), sosyal5'te %12 (31/249) birim işaretlenir. En zor 10 paragraf basılı sayfayla
+- fen5'te %6 (9/140), sosyal5'te %12 (30/246) birim işaretlenir (sürüm 5). En zor 10 paragraf basılı sayfayla
   kontrol edildi (kopya temizliği öncesi): gerçek ve gerçekten zor düzyazı (sosyal5'te haber alıntıları
   s.106, 115, 128; fen5 s.17 mühendislik tasarım döngüsü kutu metni; s.13 güvenlik sembolü kartları).
   Temizlikten sonra fen5'in en zor 10'u aynı kaldı; sosyal5'te s.125 ve s.128 (biri) çıkarım şüphesine
@@ -312,12 +319,12 @@ rından" diye bölünmüş). Eskiden U+00AD silinip satır sonu boşluğa çevri
   "nakışı" (s.23), "fotoğraf,gazete" (s.62), kaynakça "Özyürek,A" (s.21).
 - Kalan yanlış alarmların çoğu yabancı/yöresel kelimeler ("kukeri", "resfebe") ve zeyrek'in
   tanımadığı biçimler ("bulmalıyız", "sahipti"). `ek_sozluk.txt`'ye yalnızca TDK'da olan sözcük eklenir.
-- İstiklal Marşı sayfaları (fen5 s.5, sosyal5 s.3) onarıldıktan sonra yazıma girer; metnin
-  arkaik sözcükleri ("serhaddim", "vecd", "hürriyyet") düşük güvenli yanlış alarm üretir.
+- İstiklal Marşı, Gençliğe Hitabe ve Öğrenci Andı sayfaları yazım ve okunabilirlik analizinden çıkarılır (`ulusal_metin.py`);
+  eskiden arkaik sözcükleri ("serhaddim", "vecd", "hürriyyet") yanlış alarm üretiyordu.
 
 ## Demo paneli (`app.py`, Streamlit)
 
-- Başlatma: `DKDS_Baslat.bat` ya da `streamlit run app.py`; önce `python -m dkds on_hesapla` (altı kitap ≈ 2,5 dk, sonuç
+- Başlatma: `DKDS_Baslat.bat` ya da `streamlit run app.py` (panel `fen5` hazır analiziyle açılır; yoksa listenin ilki); önce `python -m dkds on_hesapla` (altı kitap ≈ 2,5 dk, sonuç
   `cikti\<kitap>_bulgular.json`). Mantık `dkds/panel.py` (süzme, sayfa işaretleme, CSV/Excel), analiz akışı `dkds/is_akisi.py`,
   sunum örnekleri `dkds/one_cikan.py` (altı doğrulanmış örnek; `tests/test_panel.py` gerçek kitaplarda sayfa ve kutuyu doğrular).
 - **Varsayılan güven süzgeci 0,5** (`panel.VARSAYILAN_EN_DUSUK_GUVEN`, ≥ dahil). Eşik yerine ayrım yazım analizöründe: kitapta
@@ -332,8 +339,9 @@ rından" diye bölünmüş). Eskiden U+00AD silinip satır sonu boşluğa çevri
   ("Görsel ve genel ağ kaynakçası" gibi «kaynakça» geçenler hariç) gelene kadar yazım denetimi dışıdır (fen3 kaynakçası: yabancı
   yazar ve İngilizce başlıklar). Sınır: başlık/etiketten sonra kaynak listesi olmayan «Kaynaklar» etiketleri (biyoloji9 s.20, 52
   etkinlik kutuları) sonraki başlık/etikete kadar denetlenmez.
-- Varsayılan süzgeçle görünen bulgu (11.11.2026; tireleme düzeltmesi ve kök ailesi sayımından sonra): biyoloji9 179 (toplam 697),
-  fen3 39 (57), fen5 27 (46), fen7 39 (75), sosyalbilgiler5 49 (82), turkce5 62 (89). Önceki durum (yalnızca tekrar sayımı): 752 / 41 /
+- Varsayılan süzgeçle görünen bulgu (12.11.2026; ulusal metin sayfaları çıkarıldıktan sonra): biyoloji9 177 (toplam 692),
+  fen3 38 (56), fen5 25 (43), fen7 37 (71), sosyalbilgiler5 47 (78), turkce5 60 (86). Tireleme ve kök ailesinden sonra, ulusal metinden
+  önce: 179 / 39 / 27 / 39 / 49 / 62. Önceki durum (yalnızca tekrar sayımı): 752 / 41 /
   28 / 46 / 53 / 93; sabit 0,55 eşiği: 60 / 29 / 10 / 20 / 15 / 25. biyoloji9'da görünen 116 bilinmeyen kelimenin çoğu kitapta 1-2 kez
   geçen terim ("notatum", "katabolik", "kovalent"...); 197 alan terimi ailesi (477 bulgu) 0,3 ile gizli.
 - Süzgeç araçlarının anahtarı kitaba özeldir (`f_tur_<kitap>`): aynı anahtarla kitap değişince tarayıcı önceki kitabın seçili
